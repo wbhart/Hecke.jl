@@ -1,5 +1,7 @@
 export FunField, FunFieldElem, FunctionField
 
+import Nemo: show_minus_one
+
 # type for the function field
 #
 # base_field = F_q(x)
@@ -49,10 +51,25 @@ end
 
 ### overloading the parent object
 
-function call{S}(F::FunField{S}, x::Int)
+#function call{S}(F::FunField{S}, x::Int)
+#  z = FunFieldElem{S}()
+#  z.data = F.field(x)
+#  z.parent = F
+#  return z
+#end
+
+function call{S}(F::FunField{S}, x)
   z = FunFieldElem{S}()
   z.data = F.field(x)
   z.parent = F
+  return z
+end
+
+function +{S}(x::FunFieldElem{S}, y::FunFieldElem{S})
+  x.parent != y.parent && error("Must have same parents")
+  z = FunFieldElem{S}()
+  z.data = x.data + y.data
+  z.parent = x.parent
   return z
 end
 
@@ -117,3 +134,5 @@ function inv{S <: Nemo.FiniteFieldElem}(x::PolyElem{S})
   degree(x) != 0 && error("Element not invertible")
   return parent(x)(inv(lead(x)))
 end
+
+show_minus_one(::Type{Nemo.Fraction{Nemo.fq_nmod_poly}}) = true
