@@ -258,6 +258,7 @@ include("NfMaximalOrder.jl")
 #include("Misc/Map.jl")
 include("basis.jl")
 include("helper.jl")
+include("FunField.jl")
 
 ################################################################################
 #
