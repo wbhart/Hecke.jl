@@ -147,76 +147,88 @@ end
 #
 ################################################################################
 
-doc"""
-***
-    call(O::GenNfOrd, a::nf_elem, check::Bool = true) -> NfOrderElem
-
-> Given an element $a$ of the ambient number field of $\mathcal O$, this
-> function coerces the element into $\mathcal O$. It will be checked that $a$
-> is contained in $\mathcal O$ if and only if `check` is `true`.
-"""
-function call(O::GenNfOrd, a::nf_elem, check::Bool = true)
-  if check
-    (x,y) = _check_elem_in_order(a,O)
-    !x && error("Number field element not in the order")
-    return NfOrderElem(O, deepcopy(a), y)
-  else
-    return NfOrderElem(O, deepcopy(a))
+#doc"""
+#***
+#    call(O::GenNfOrd, a::nf_elem, check::Bool = true) -> NfOrderElem
+#
+#> Given an element $a$ of the ambient number field of $\mathcal O$, this
+#> function coerces the element into $\mathcal O$. It will be checked that $a$
+#> is contained in $\mathcal O$ if and only if `check` is `true`.
+#"""
+for T in subtypes(GenNfOrd)
+  function (O::T)(a::nf_elem, check::Bool = true)
+    if check
+      (x,y) = _check_elem_in_order(a,O)
+      !x && error("Number field element not in the order")
+      return NfOrderElem(O, deepcopy(a), y)
+    else
+      return NfOrderElem(O, deepcopy(a))
+    end
   end
 end
 
-doc"""
-***
-    call(O::GenNfOrd, a::Union{fmpz, Integer}) -> NfOrderElem
-
-> Given an element $a$ of type `fmpz` or `Integer`, this
-> function coerces the element into $\mathcal O$. It will be checked that $a$
-> is contained in $\mathcal O$ if and only if `check` is `true`.
-"""
-function call(O::GenNfOrd, a::Union{fmpz, Integer})
-  return NfOrderElem(O, nf(O)(a))
+#doc"""
+#***
+#    call(O::GenNfOrd, a::Union{fmpz, Integer}) -> NfOrderElem
+#
+#> Given an element $a$ of type `fmpz` or `Integer`, this
+#> function coerces the element into $\mathcal O$. It will be checked that $a$
+#> is contained in $\mathcal O$ if and only if `check` is `true`.
+#"""
+for T in subtypes(GenNfOrd)
+  function (O::T)(a::Union{fmpz, Integer})
+    return NfOrderElem(O, nf(O)(a))
+  end
 end
 
-doc"""
-***
-    call(O::GenNfOrd, arr::Array{fmpz, 1})
-
-> Returns the element of $\mathcal O$ with coefficient vector `arr`.
-"""
-function call(O::GenNfOrd, arr::Array{fmpz, 1})
-  return NfOrderElem(O, deepcopy(arr))
+#doc"""
+#***
+#    call(O::GenNfOrd, arr::Array{fmpz, 1})
+#
+#> Returns the element of $\mathcal O$ with coefficient vector `arr`.
+#"""
+for T in subtypes(GenNfOrd)
+  function (O::T)(arr::Array{fmpz, 1})
+    return NfOrderElem(O, deepcopy(arr))
+  end
 end
 
-doc"""
-***
-    call{T <: Integer}(O::GenNfOrd, arr::Array{T, 1})
+#doc"""
+#***
+#    call{T <: Integer}(O::GenNfOrd, arr::Array{T, 1})
+#
+#> Returns the element of $\mathcal O$ with coefficient vector `arr`.
+#"""
+#for T in subtypes(GenNfOrd)
+#  (O::T)(arr::Array{Integer, 1})
+#    return NfOrderElem(O, deepcopy(arr))
+#  end  
+#end
 
-> Returns the element of $\mathcal O$ with coefficient vector `arr`.
-"""
-function call{T <: Integer}(O::GenNfOrd, arr::Array{T, 1})
-  return NfOrderElem(O, deepcopy(arr))
+#doc"""
+#***
+#    call(O::GenNfOrd, a::nf_elem, arr::Array{fmpz, 1}) -> NfOrderElem
+#
+#> This function constructs the element of $\mathcal O$ with coefficient vector
+#> `arr`. It is assumed that the corresponding element of the ambient number
+#> field is $a$.
+#"""
+for T in subtypes(GenNfOrd)
+  function (O::T)(a::nf_elem, arr::Array{fmpz, 1})
+    return NfOrderElem(O, deepcopy(a), deepcopy(arr))
+  end
 end
 
-doc"""
-***
-    call(O::GenNfOrd, a::nf_elem, arr::Array{fmpz, 1}) -> NfOrderElem
-
-> This function constructs the element of $\mathcal O$ with coefficient vector
-> `arr`. It is assumed that the corresponding element of the ambient number
-> field is $a$.
-"""
-function call(O::GenNfOrd, a::nf_elem, arr::Array{fmpz, 1})
-  return NfOrderElem(O, deepcopy(a), deepcopy(arr))
-end
-
-doc"""
-***
-    call(O::GenNfOrd) -> NfOrderElem
-
-> This function constructs a new element of $\mathcal O$ which is set to $0$.
-"""
-function call(O::GenNfOrd)
-  return NfOrderElem(O)
+#doc"""
+#***
+#    call(O::GenNfOrd) -> NfOrderElem
+#
+#> This function constructs a new element of $\mathcal O$ which is set to $0$.
+#"""
+for T in subtypes(GenNfOrd)
+  function (O::T)()
+    return NfOrderElem(O)
+  end
 end
 
 ################################################################################

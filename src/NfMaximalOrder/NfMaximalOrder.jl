@@ -37,6 +37,8 @@ export NfMaximalOrder
 export MaximalOrder, conjugate_data, basis, nf, basis_mat, basis_mat_inv,
        degree, index, is_index_divisor, discriminant
 
+import Nemo.PariMaximalOrder       
+
 ################################################################################
 #
 #  Field access
@@ -184,7 +186,7 @@ doc"""
     julia> K, a = NumberField(x^3 + 2, "a")
     julia> O = MaximalOrder(K)
 """
-function MaximalOrder(K::AnticNumberField)
+function PariMaximalOrder(K::AnticNumberField)
   O = EquationOrder(K)
   @vprint :NfMaximalOrder 1 "Computing the maximal order ...\n"
   O = _MaximalOrder(O)
@@ -200,7 +202,7 @@ doc"""
 > order $\mathbf{Z}[\alpha]$ of $K = \mathbf{Q}(\alpha)$ is not maximal,
 > this function returns the maximal order of $K$.
 """
-function MaximalOrder(K::AnticNumberField, primes::Array{fmpz, 1})
+function PariMaximalOrder(K::AnticNumberField, primes::Array{fmpz, 1})
   O = EquationOrder(K)
   @vprint :NfMaximalOrder 1 "Computing the maximal order ...\n"
   O = _MaximalOrder(O, primes)

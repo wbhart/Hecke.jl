@@ -1371,6 +1371,8 @@ function ^(x::quoelem, y::Int)
   return quoelem(x.parent, z)
 end
 
+import Nemo.minpoly
+
 function minpoly(x::quoelem)
   O = x.parent.base_order
   p = x.parent.prime

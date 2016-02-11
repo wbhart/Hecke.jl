@@ -90,7 +90,7 @@ end
 
 function bach_J{T<:Number}(u::T, v::T, w::T, prec)
   k = ceil(w-w/u)
-  function xi(t::T)
+  function xi{T}(t::T)
     return k-w+w/t
   end
 
@@ -98,7 +98,7 @@ function bach_J{T<:Number}(u::T, v::T, w::T, prec)
     local A = w/v+k-w,
           B = w/u+k-w,
           C = k-w
-    function H_i(u::T, v::T, w::T, i::Int)
+    function H_i{T}(u::T, v::T, w::T, i::Int)
       return C^i*(log(u/v) + sum([(A/C)^j/j for j=1:i]) -
                              sum([(B/C)^j/j for j=1:i]))
     end

@@ -58,13 +58,13 @@ type CompositeMap{D, C, R} <: Map{D, C}
     z.domain = domain(g)
     z.codomain = codomain(f)
 
-    image = function(x::elem_type(domain(z)))
+    image = function(x::Any) #elem_type(domain(z)))
       parent(x) != domain(z) && error("Element not in domain of map")
       return f(g(x))::elem_type(codomain(z))
     end
 
     if isdefined(f, :preimage) && isdefined(g, :preimage)
-      preimage = function(x::elem_type(codomain(z)))
+      preimage = function(x::Any) # elem_type(codomain(z)))
         return codomain(g, codomain(f, x))::elem_type(domain(z))
       end
       z.header = MapHeader(domain(g), codomain(f), image, preimage)
@@ -92,7 +92,7 @@ type ResidueRingPolyMap{D, C, T} <: Map{D, C}
   gen_image::Residue{T}
   coeff_map::Map # can be missing if domain and codomain have the same
                  # base_ring(base_ring())
-  function ResidueRingPolyMap(domain::D, codomain::C, gen_image::Residue{T}, coeff_map::Map)
+  function ResidueRingPolyMap{T}(domain::D, codomain::C, gen_image::Residue{T}, coeff_map::Map)
     z = new{D, C, T}()
     z.gen_image = gen_image
     z.coeff_map = coeff_map
@@ -107,7 +107,7 @@ type ResidueRingPolyMap{D, C, T} <: Map{D, C}
     end
     
     # I need to call preimage in _preimage
-    _preimage = function(a::Residue{T})
+    function _preimage{T}(a::Residue{T})
       R = codomain
       parent(a) == R || throw("mixed rings in preimage")
       g = gens(domain)
@@ -148,7 +148,7 @@ type ResidueRingPolyMap{D, C, T} <: Map{D, C}
       return I::elem_type(C)
     end
 
-    preimage = function(a::Residue{T})
+    preimage = function(a::Residue)
       R = z.codomain
       parent(a) == R || throw("mixed rings in preimage")
       g = gens(domain)
@@ -193,7 +193,7 @@ type IdentityMap{D} <: Map{D, D}
   function IdentityMap(domain::D)
     z = new{D}()
 
-    image = function(x::elem_type(D))
+    image = function(x::Any) # elem_type(D))
       return x::elem_type(D)
     end
     preimage = image
