@@ -334,8 +334,8 @@ function _factor!{T}(M::Smat{T}, i::Int, FB::NfFactorBase, a::nf_elem,
 end
 
 function factor(FB::NfFactorBase, a::nf_elem)
-  M = MatrixSpace(FlintZZ, 1, FB.size)()
-  factor!(M, 1, FB, a)
+  M = Smat{Int}()
+  _factor!(M, 1, FB, a)
   return M
 end
 
@@ -453,7 +453,7 @@ function special_prime_ideal(p::fmpz, a::nf_elem)
   R = parent(f)
   Zx = PolynomialRing(ZZ, "\$x_z")[1]
   Zf = Zx(f)
-  Zpx = PolynomialRing(ResidueRing(ZZ, p), "\$x_p")[1]
+  Zpx = PolynomialRing(ResidueRing(ZZ, p, cached=false), "\$x_p", cached=false)[1]
   Za = Zx(parent(f)(a*den(a)))
   g = gcd(Zpx(Zf), Zpx(Za))
   return lift(Zx, g)
@@ -626,7 +626,8 @@ function shift!(g::fmpz_mat, l::Int)
   end
   return g
 end
- 
+
+global last_lat=9
 function lll(rt_c::roots_ctx, A::NfMaximalOrderIdeal, v::fmpz_mat;
                 prec::Int = 100)
   c = minkowski_mat(rt_c, nf(order(A)), prec) ## careful: current iteration
@@ -638,6 +639,7 @@ function lll(rt_c::roots_ctx, A::NfMaximalOrderIdeal, v::fmpz_mat;
   end
   d = rt_c.cache
   mult!(d, b.num, c)
+  den = b.den
   if !iszero(v)
     @v_do :ClassGroup 2 println("using inf val", v)
     old = precision(BigFloat)
@@ -671,12 +673,12 @@ function lll(rt_c::roots_ctx, A::NfMaximalOrderIdeal, v::fmpz_mat;
   ## l[1,1] = |b_i|^2 <= 2^((n-1)/2) disc^(1/n)  
   ## and prod(l[i,i]) <= 2^(n(n-1)/2) disc
   n = rows(l)
-  den = basis_mat(order(A)).den
   disc = abs(discriminant(order(A)))*norm(A)^2 * den^(2*n)
   d = root(disc, n)+1
   d *= fmpz(2)^(div(n+1,2)) * fmpz(2)^prec
   pr = fmpz(1)
   if l[1,1] > d 
+    global last_lat = (g, disc, d, prec, A)
     print_with_color(:red, "LLL basis too large\n");
     println("bound is ", d, " value at ", 1, " is ", l[1,1]); 
     throw(LowPrecisionLLL())
@@ -734,6 +736,7 @@ end
 
 function enum_ctx_from_ideal(c::roots_ctx, A::NfMaximalOrderIdeal,
                 v::fmpz_mat;prec::Int = 100, limit::Int = 0, Tx::DataType = Int, TU::DataType = Float64, TC::DataType = Float64)
+
   l, t = lll(c, A, v, prec = prec)
   temp = FakeFmpqMat(basis_mat(A))*basis_mat(order(A))
   b = temp.num
@@ -826,7 +829,7 @@ function class_group_current_result(clg::ClassGrpCtx)
       upper_triangular(h, mod = modu)
       if rows(h) == cols(h)
         h = copy(clg.M)
-        println("1st non modular hnf")
+        #println("1st non modular hnf")
         upper_triangular(h)
         clg.H_is_modular = false
         full_rank = true
@@ -871,7 +874,7 @@ we do need redundant relations for the units.
   clg.H = h
   clg.last_H = length(clg.R)
   if length(clg.R)/rows(h) > 4
-    print_with_color(:yellow, "not enough useful relations\n")
+    #print_with_color(:yellow, "not enough useful relations\n")
   end
     
   piv = Array(Int, 0)
@@ -964,7 +967,7 @@ function class_group_find_relations(clg::ClassGrpCtx; val = 0, prec = 100,
       end
 #        print_with_color(:blue, "norm OK:")
 #        println(n//norm(I[end].A), " should be ", sqrt_disc)
-      if n > sqrt_disc
+      if nbits(num(n)) > np-10
 #        prec = Int(ceil(prec*1.2))
         print_with_color(:red, "norm too large:")
         println(n, " should be ", sqrt_disc)
@@ -1057,9 +1060,9 @@ function class_group_find_relations(clg::ClassGrpCtx; val = 0, prec = 100,
           @assert false   
         end
         =#
-        if n > sqrt_disc
+        if nbits(num(n)) > np-10
           @v_do :ClassGroup 2 begin
-            print_with_color(:red, "2:norm too large:")
+            print_with_color(:red, "2:norm too large: $n of $(nbits(num(n))) vs $np")
             println(n, " should be ", sqrt_disc)
             println("offending element is ", e)
             println("prec now ", prec)
@@ -1195,8 +1198,8 @@ function class_group_find_relations2(clg::ClassGrpCtx; val = 0, prec = 100,
     while true
       e = class_group_small_real_elements_relation_next(f)
       n = abs(norm_div(e, norm(f.A), np))
-      if n > sqrt_disc || f.restart > 0
-        print_with_color(:red, "norm too large or restarting:")
+      if nbits(num(n)) > np-10 || f.restart > 0
+        print_with_color(:red, "norm too large or restarting: $(f.restart)")
         println(n, " should be ", sqrt_disc)
         println("offending element is ", e)
         println("skipping ideal (for now)")
@@ -1280,7 +1283,7 @@ function class_group_find_relations2(clg::ClassGrpCtx; val = 0, prec = 100,
         while true
           e = class_group_small_real_elements_relation_next(E)
           n = abs(norm_div(e, norm(E.A), np))
-          if n > sqrt_disc || E.restart > 2
+          if nbits(num(n)) > np-10 || E.restart > 5
             @v_do :ClassGroup 2 begin
               print_with_color(:red, "2:norm too large (or restarting):")
               println(n, " should be ", sqrt_disc)
@@ -1365,6 +1368,8 @@ function class_group_find_relations2(clg::ClassGrpCtx; val = 0, prec = 100,
   return class_group_current_result(clg)
 end
 
+
+# CF: incomplete
 function class_group_find_relations3(clg::ClassGrpCtx; val = 0, prec = 100,
                 limit = 10, no_b = 1)
   O = order(clg.FB.ideals[1])
@@ -1399,6 +1404,11 @@ end
 ################################################################################
 
 function class_group(O::NfMaximalOrder; bound = -1, method = 2, large = 1000)
+  try 
+    c = _get_ClassGrpCtx_of_order(O)::ClassGrpCtx
+    return c
+  end
+
   if bound == -1
     bound = Int(ceil(log(abs(discriminant(O)))^2*0.3))
   end
@@ -1412,9 +1422,77 @@ function class_group(O::NfMaximalOrder; bound = -1, method = 2, large = 1000)
     class_group_find_relations2(c)
   end
 
+  _set_ClassGrpCtx_of_order(O, c)
+
   return c
 end
 
+function class_group_proof(clg::ClassGrpCtx, lb::fmpz, ub::fmpz; extra :: fmpz=fmpz(0), prec::Int = 100, do_it=1:ub)
+  #for all prime ideals P with lb <= norm <= ub, find a relation
+  #tying that prime to the factor base
+  # if extra is useful, assume that the function was already run for all primes
+  # up to norm extra
+
+  if extra==0
+    extra = norm(clg.FB.ideals[1])
+  end
+  println("expect to need ", Int(floor(li(ub*1.0) - li(lb*1.0))), " primes")
+  O = order(clg.FB.ideals[1])
+  n = degree(O)
+  p = next_prime(root(lb, n))
+  np = Int(floor(log(abs(discriminant(O)))/log(2)/2))
+  no_primes = 0
+  no_ideals = 0
+  if do_it.start > 1
+    p = fmpz(next_prime(do_it.start))
+  end
+  while p < do_it.stop
+    no_primes += 1
+    if no_primes % 100 == 0
+      println("did $no_primes prime numbers so far, now $p, need to reach $ub")
+    end
+    deg_lim = Int(floor(log(ub)/log(p)))
+    low_lim = Int(floor(log(lb)/log(p)))
+    fac = prime_decomposition(O, Int(p), deg_lim, low_lim)
+    for _k in fac
+      k = _k[1]
+      if norm(k) <= lb 
+        continue
+      end
+      no_ideals += 1
+      if no_ideals % 100 == 0
+        println("done $no_ideals ideals so far...")
+        gc()
+      end
+      #println("to be more precise: $k")
+      E = class_group_small_real_elements_relation_start(clg, k, limit=10, prec=prec)
+      while true
+        sucess = false
+        a = class_group_small_real_elements_relation_next(E)
+        n = norm_div(a, norm(k), np)
+        if gcd(num(n), p) > extra 
+          println("a: $a, $(norm(a)), $(norm(k)), $n")
+#          println("contains too many conjugates, bad")
+          continue
+        end
+        f, r = is_smooth(clg.FB.fb_int, num(n))
+        if f 
+          M = Smat{Int}()
+          fl = _factor!(M, 1, clg.FB, a, false, n)
+          if fl
+            break
+          else
+#            println("not smooth, ideal")
+          end
+        else
+#          println("not smooth, int")
+        end
+      end
+    end
+    p = next_prime(p)
+  end
+  println("success: used $no_primes numbers and $no_ideals ideals")
+end
 
 ################################################################################
 #

@@ -43,6 +43,30 @@ function next_prime{T <: Integer}(z::T)
   return z
 end
 
+function next_prime(z::fmpz)
+  z < 0 && error("Argument must be positive")
+
+  Tone = one(z)
+  Tzero = zero(z)
+  Ttwo = one(z) + one(z)
+
+  if z == Tone || z == Tzero
+    return Ttwo
+  end
+
+  if iseven(z)
+    z += Tone
+  else z += Ttwo
+  end
+
+  while !isprime(z)
+    Nemo.addeq!(z, Ttwo)
+  end
+
+  return z
+end
+
+
 # should be Bernstein'ed: this is slow for large valuations
 # returns the maximal v s.th. z mod p^v == 0 and z div p^v
 #   also useful if p is not prime....
@@ -260,4 +284,13 @@ function rand(rng::AbstractRNG, a::StepRange{fmpz, fmpz})
   end
   return s + first(a)
 end
+
+function ^(x::fmpq, y::fmpz)
+  if typemax(Int) > y
+    return x^Int(y)
+  else
+    error("Not implemented (yet)")
+  end
+end
+
 

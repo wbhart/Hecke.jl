@@ -70,10 +70,23 @@ end
 
 ################################################################################
 #
-#  Exponentiation
+#  Inverse
 #
 ################################################################################
 
+function inv(x::FactoredElem{nf_elem})
+  y = deepcopy(x)
+  for a in base(y)
+    y.fac[a] = -y.fac[a]
+  end
+  return y
+end
+
+################################################################################
+#
+#  Exponentiation
+#
+################################################################################
 
 function pow!{T <: Union{fmpz, Integer}}(z::FactoredElem, x::FactoredElem, y::T)
   z.fac = _deepcopy(x.fac)
@@ -156,7 +169,7 @@ end
 #
 ################################################################################
 
-function transform{T}(x::Array{FactoredElem{T}, 1}, y::fmpz_mat)
+function _transform{T}(x::Array{FactoredElem{T}, 1}, y::fmpz_mat)
   length(x) != rows(y) &&
               error("Length of array must be number of rows of matrix")
 
@@ -177,20 +190,72 @@ function transform{T}(x::Array{FactoredElem{T}, 1}, y::fmpz_mat)
   return z
 end
 
+function transform{T}(x::Array{FactoredElem{T}, 1}, y::fmpz_mat)
+  return _transform(x, y)
+end
+
 ################################################################################
 #
 #  Evaluate
 #
 ################################################################################
 
-function evaluate{T}(x::FactoredElem{T})
-  z = one(base_ring(x))
+doc"""
+***
+  evaluate{T}(x::FactoredElem{T}) -> T
 
-  for a in base(x)
-    z = z*a^x.fac[a]
+> Expands or evaluates the factored element, i.e. actually computes the
+> value. 
+"""
+function evaluate{T}(x::FactoredElem{T})
+  function ev(d::Dict{T, fmpz})
+    z = one(base_ring(x))
+    if length(d)==0
+      return z
+    elseif length(d)==1
+      x = first(d)
+      return x[1]^x[2]
+    end
+    b = similar(d)
+    for (k,v) in d
+      if v>-10 && v<10
+        z *= k^v
+      else
+        r = isodd(v) ? 1 :0
+        vv = div(v-r, 2)
+        if vv!=0
+          b[k] = vv
+        end
+        if r!=0
+          z*= k
+        end
+      end
+    end
+    return ev(b)^2*z
+  end
+
+  return ev(x.fac)
+end
+
+doc"""
+***
+  naive_evaluate{T}(x::FactoredElem{T}) -> T
+
+> Expands or evaluates the factored element, i.e. actually computes the
+> value. Uses the obvious naive algorithm. Faster for input in finite rings.
+"""
+function naive_evaluate{T}(x::FactoredElem{T})
+  z = one(base_ring(x))
+  d = x.fac
+  if length(d)==0
+    return z
+  end
+  for (k,v) in d
+    z *= k^v
   end
   return z
 end
+
 
 ################################################################################
 #

@@ -401,6 +401,42 @@ doc"""
 """
 one(O::GenNfOrd) = O(fmpz(1))
 
+doc"""
+***
+    zero(a::NfOrderElem) -> NfOrderElem
+
+> Returns the zero in the same ring.
+"""
+zero(a::NfOrderElem) = parent(a)(0)
+
+doc"""
+***
+    one(O::GenNfOrd) -> NfOrderElem
+
+> Returns the one in the same ring.
+"""
+one(a::NfOrderElem) = parent(a)(1)
+
+
+doc"""
+***
+    isone(a::GenNfOrd) -> Bool
+
+> Tests if a is one.
+"""
+isone(a::NfOrderElem) = isone(a.elem_in_nf)
+
+doc"""
+***
+    iszero(a::GenNfOrd) -> Bool
+
+> Tests if a is one.
+"""
+iszero(a::NfOrderElem) = iszero(a.elem_in_nf)
+
+
+
+
 ################################################################################
 #
 #  String I/O
@@ -483,13 +519,21 @@ doc"""
 
 > Returns $x \cdot y$.
 """
-function *(x::NfOrderElem, y::Union{fmpz, Integer})
+function *(x::NfOrderElem, y::Integer)
   z = parent(x)()
   z.elem_in_nf = x.elem_in_nf * y
   return z
 end
 
-*(x::Union{fmpz, Integer}, y::NfOrderElem) = y * x
+*(x::Integer, y::NfOrderElem) = y * x
+
+function *(x::NfOrderElem, y::fmpz)
+  z = parent(x)()
+  z.elem_in_nf = x.elem_in_nf * y
+  return z
+end
+
+*(x::fmpz, y::NfOrderElem) = y * x
 
 doc"""
 ***
@@ -497,13 +541,21 @@ doc"""
 
 > Returns $x + y$.
 """
-function +(x::NfOrderElem, y::Union{fmpz, Integer})
+function +(x::NfOrderElem, y::Integer)
   z = parent(x)()
   z.elem_in_nf = x.elem_in_nf + y
   return z
 end
 
-+(x::Union{fmpz, Integer}, y::NfOrderElem) = y + x
++(x::Integer, y::NfOrderElem) = y + x
+
+function +(x::NfOrderElem, y::fmpz)
+  z = parent(x)()
+  z.elem_in_nf = x.elem_in_nf + y
+  return z
+end
+
++(x::fmpz, y::NfOrderElem) = y + x
 
 doc"""
 ***
