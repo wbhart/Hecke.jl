@@ -535,6 +535,8 @@ end
 
 *(x::fmpz, y::NfOrderElem) = y * x
 
+Base.dot(x::fmpz, y::NfOrderElem) = y*x
+
 doc"""
 ***
     +(x::NfOrderElem, y::Union{fmpz, Integer})
@@ -1031,7 +1033,7 @@ function mod(x::NfOrderElem, y::GenNfOrdIdl)
   b = basis_mat(y)
   t = fmpz(0)
   for i in degree(O):-1:1
-    t = cdiv(a[i],b[i,i])
+    t = fdiv(a[i],b[i,i])
     for j in 1:i
       a[j] = a[j] - t*b[i,j]
     end

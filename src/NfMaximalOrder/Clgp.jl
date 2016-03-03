@@ -1436,7 +1436,9 @@ function class_group_proof(clg::ClassGrpCtx, lb::fmpz, ub::fmpz; extra :: fmpz=f
   if extra==0
     extra = norm(clg.FB.ideals[1])
   end
-  println("expect to need ", Integer(floor(li(ub*1.0) - li(lb*1.0))), " primes")
+  lb = max(lb, norm(clg.FB.ideals[1]))
+  lb = max(lb, 2)
+  println("expect to need ", Int(floor(li(ub*1.0) - li(lb*1.0))), " primes")
   O = order(clg.FB.ideals[1])
   n = degree(O)
   p = next_prime(root(lb, n))
@@ -1446,6 +1448,7 @@ function class_group_proof(clg::ClassGrpCtx, lb::fmpz, ub::fmpz; extra :: fmpz=f
   if do_it.start > 1
     p = fmpz(next_prime(do_it.start))
   end
+  gc_enable(false)
   while p < do_it.stop
     no_primes += 1
     if no_primes % 100 == 0
@@ -1460,9 +1463,11 @@ function class_group_proof(clg::ClassGrpCtx, lb::fmpz, ub::fmpz; extra :: fmpz=f
         continue
       end
       no_ideals += 1
-      if no_ideals % 100 == 0
+      if no_ideals % 10 == 0
         println("done $no_ideals ideals so far...")
+        gc_enable(true)
         gc()
+        gc_enable(false)
       end
       #println("to be more precise: $k")
       E = class_group_small_real_elements_relation_start(clg, k, limit=10, prec=prec)
@@ -1492,6 +1497,7 @@ function class_group_proof(clg::ClassGrpCtx, lb::fmpz, ub::fmpz; extra :: fmpz=f
     p = next_prime(p)
   end
   println("success: used $no_primes numbers and $no_ideals ideals")
+  gc_enable(true)
 end
 
 ################################################################################
