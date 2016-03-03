@@ -1436,7 +1436,7 @@ function class_group_proof(clg::ClassGrpCtx, lb::fmpz, ub::fmpz; extra :: fmpz=f
   if extra==0
     extra = norm(clg.FB.ideals[1])
   end
-  println("expect to need ", Int(floor(li(ub*1.0) - li(lb*1.0))), " primes")
+  println("expect to need ", Integer(floor(li(ub*1.0) - li(lb*1.0))), " primes")
   O = order(clg.FB.ideals[1])
   n = degree(O)
   p = next_prime(root(lb, n))

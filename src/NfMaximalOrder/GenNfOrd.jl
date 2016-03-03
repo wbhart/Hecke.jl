@@ -631,10 +631,10 @@ doc"""
 """
 
 function powermod(a::NfOrderElem, i::fmpz, p::fmpz)
-  if i == 0 then
+  if i == 0
     return one(parent(a))
   end
-  if i == 1 then
+  if i == 1 
     b = mod(a,p)
     return b
   end

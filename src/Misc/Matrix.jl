@@ -46,15 +46,6 @@ function is_zero_row(M::Array{fmpz, 2}, i::Int)
   return true
 end
 
-function is_zero_row(M::Array{fmpz, 2}, i::Int)
-  for j = 1:Base.size(M, 2)
-    if M[i,j] != 0 
-      return false
-    end
-  end
-  return true
-end
-
 function is_zero_row{T <: RingElem}(M::Array{T, 2}, i::Int)
   for j in 1:Base.size(M, 2)
     if !iszero(M[i,j])
