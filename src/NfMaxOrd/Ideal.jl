@@ -983,20 +983,34 @@ function valuation(a::nf_elem, p::NfMaxOrdIdeal)
       end
       M[1,i] = x
     end
-    e = elem_from_mat_row(K, M, 1, fmpz(1))
-    M = representation_mat(e) ## reduce mod p^? ?
-    x_mat = MatrixSpace(ZZ, 1, degree(O))()
-    d = fmpz(1)
-    p.valuation = function(x::nf_elem)
-      v = 0
-      elem_to_mat_row!(x_mat, 1, d, x)
-      Nemo.mul!(x_mat, x_mat, M)
-      while gcd(content(x_mat), P) == P
-        divexact!(x_mat, x_mat, P)
+    if degree(O) < 20 
+      e = elem_from_mat_row(K, M, 1, fmpz(1))
+      M = representation_mat(e) ## reduce mod p^? ?
+      x_mat = MatrixSpace(ZZ, 1, degree(O))()
+      d = fmpz(1)
+      p.valuation = function(x::nf_elem)
+        v = 0
+        elem_to_mat_row!(x_mat, 1, d, x)
         Nemo.mul!(x_mat, x_mat, M)
-        v += 1
+        while gcd(content(x_mat), P) == P
+          divexact!(x_mat, x_mat, P)
+          Nemo.mul!(x_mat, x_mat, M)
+          v += 1
+        end
+        return v-valuation(d, P)[1]*p.splitting_type[1]
       end
-      return v-valuation(d, P)[1]*p.splitting_type[1]
+    else
+      e = elem_from_mat_row(K, M, 1, P)
+      p.valuation = function(x::nf_elem)
+        v =-1
+        d = den(x)
+        x *= d
+        while gcd(den(x), P)==1
+          mul!(x, x, e)
+          v += 1
+        end
+        return (v-valuation(d, P)[1]*p.splitting_type[1])::Int
+      end
     end
   else
     # we are in the index divisor case. In larger examples, a lot of
