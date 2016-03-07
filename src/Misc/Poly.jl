@@ -148,3 +148,98 @@ function resultant(f::fmpz_poly, g::fmpz_poly, d::fmpz, nb::Int)
   return z
 end
 
+
+##############################################################
+#
+# Hensel
+#
+##############################################################
+
+type fmpz_poly_factor
+  c::fmpz
+  poly::Ptr{fmpz_poly}
+  exp::Ptr{Int} 
+  _num::Int
+  _alloc::Int
+    
+  function fmpz_poly_factor()
+    z = new()
+    ccall((:fmpz_poly_factor_init, :libflint), Void,
+            (Ptr{fmpz_poly_factor}, ), &z)
+    finalizer(z, _fmpz_poly_factor_clear_fn)
+    return z
+  end
+end
+
+function _fmpz_poly_factor_clear_fn(a::fmpz_poly_factor)
+  ccall((:fmpz_poly_factor_clear, :libflint), Void,
+          (Ptr{fmpz_poly_factor}, ), &a)
+end
+ 
+function factor_to_dict(a::fmpz_poly_factor)
+  res = Dict{fmpz_poly,Int}()
+  Zx,x = PolynomialRing(FlintZZ, "x")
+  for i in 1:fac._num
+    f = Zx()
+    ccall((:fmpz_poly_set, :libflint), Void, (Ptr{fmpz_poly}, Ptr{fmpz_poly}), &f, &(unsafe_load(a.poly, i)))
+    res[f] = unsafe_load(a.exp, i-1)
+  end  
+  return res
+end
+
+function show(io::IO, a::fmpz_poly_factor)
+  ccall((:fmpz_poly_factor_print, :libflint), Void, (Ptr{fmpz_poly_factor}, ), &a)
+end
+
+type HenselCtx
+  f::fmpz_poly
+  p::UInt
+
+  LF :: fmpz_poly_factor
+  link::Ptr{Int}
+  v::Ptr{Ptr{fmpz_poly}}
+  w::Ptr{Ptr{fmpz_poly}}
+  V::Array{fmpz_poly, 1}
+  W::Array{fmpz_poly, 1}
+  N::UInt
+  lf:: Nemo.nmod_poly_factor
+
+  function HenselCtx(f::fmpz_poly, p::fmpz)
+    a = new()
+    a.f = f
+    a.p = UInt(p)
+    Zx,x = PolynomialRing(FlintZZ, "x")
+    Rx,x = PolynomialRing(ResidueRing(FlintZZ, p), "x")
+    a.lf = Nemo.nmod_poly_factor(UInt(p))
+    ccall((:nmod_poly_factor, :libflint), UInt,
+          (Ptr{Nemo.nmod_poly_factor}, Ptr{nmod_poly}), &(a.lf), &Rx(f))
+    r = a.lf._num
+    a.LF = fmpz_poly_factor()
+    @assert r > 1  #flint restriction
+    a.v = ccall((:flint_malloc, :libflint), Ptr{Ptr{fmpz_poly}}, (Int, ), (2*r-2)*sizeof(Ptr{fmpz_poly}))
+    a.w = ccall((:flint_malloc, :libflint), Ptr{Ptr{fmpz_poly}}, (Int, ), (2*r-2)*sizeof(Ptr{fmpz_poly}))
+    a.V = Array(fmpz_poly, 2*r-2)
+    a.W = Array(fmpz_poly, 2*r-2)
+    for i=1:(2*r-2)
+      a.V[i] = Zx()
+      a.W[i] = Zx()
+      unsafe_store!(a.v, pointer_from_objref(a.V[i]), i)
+      unsafe_store!(a.w, pointer_from_objref(a.W[i]), i)
+    end
+    a.link = ccall((:flint_calloc, :libflint), Ptr{Int}, (Int, Int), r, sizeof(Int))
+    a.N = 0
+    return a
+  end
+end
+
+function show(io::IO, a::HenselCtx)
+  println("factorisation of $(a.f) modulo $(a.p)^$(a.N)")
+end
+
+function start_lift(a::HenselCtx, N::Int)
+  ccall((:_fmpz_poly_hensel_start_lift, :libflint), Int, 
+       (Ptr{fmpz_poly_factor}, Ptr{Int}, Ptr{Ptr{fmpz_poly}}, Ptr{Ptr{fmpz_poly}}, Ptr{fmpz_poly}, Ptr{nmod_poly_factor}, Int),
+       &a.LF, a.p, &a.v, &a.w, &a.lf, N)
+  return N
+end
+

@@ -1,6 +1,6 @@
 ################################################################################
 #
-#  GenNfOrd.jl : Generic orders in number fields and elements/ideals thereof
+#  NfOrdCls.jl : Generic orders in number fields and elements/ideals thereof
 #
 # This file is part of hecke.
 #
@@ -37,7 +37,7 @@
 #
 ################################################################################
 
-export GenNfOrdIdl, elem_in_order, rand, rand!, istorsionunit, NfOrderElem,
+export NfOrdClsIdl, elem_in_order, rand, rand!, istorsionunit, NfOrdElem,
        minkowski_mat, conjugates_log, conjugates_arb
 
 ################################################################################
@@ -48,11 +48,11 @@ export GenNfOrdIdl, elem_in_order, rand, rand!, istorsionunit, NfOrderElem,
 
 doc"""
 ***
-    signature(O::GenNfOrd) -> Tuple{Int, Int}
+    signature(O::NfOrdCls) -> Tuple{Int, Int}
 
 > Returns the signature of the ambient number field of $\mathcal O$.
 """
-function signature(x::GenNfOrd)
+function signature(x::NfOrdCls)
   if x.signature[1] != -1
     return x.signature
   else
@@ -69,15 +69,15 @@ end
 
 doc"""
 ***
-    discriminant(O::GenNfOrd) -> fmpz
+    discriminant(O::NfOrdCls) -> fmpz
 
 > Returns the discriminant of $\mathcal O$.
 """
-function discriminant(O::GenNfOrd)
+function discriminant(O::NfOrdCls)
   return _discriminant(O)
 end
 
-function _discriminant(O::GenNfOrd)
+function _discriminant(O::NfOrdCls)
   if isdefined(O, :disc)
     return O.disc
   end
@@ -101,7 +101,7 @@ end
 
 doc"""
 ***
-    minkowski_mat(O::GenNfOrd, abs_tol::Int) -> arb_mat
+    minkowski_mat(O::NfOrdCls, abs_tol::Int) -> arb_mat
 
 > Returns the Minkowski matrix of $\mathcal O$.
 > Thus if $\mathcal O$ has degree $d$, then the
@@ -110,7 +110,7 @@ doc"""
 > less then `2^abs_tol`. 
 """
 
-function minkowski_mat(O::GenNfOrd, abs_tol::Int)
+function minkowski_mat(O::NfOrdCls, abs_tol::Int)
   if isdefined(O, :minkowski_mat) && O.minkowski_mat[2] < abs_tol
     A = deepcopy(O.minkowski_mat[1])
   else
@@ -135,7 +135,7 @@ end
 ################################################################################
 ################################################################################
 ##
-##  NfOrderElem
+##  NfOrdElem
 ##
 ################################################################################
 ################################################################################
@@ -229,6 +229,76 @@ for T in subtypes(GenNfOrd)
   function (O::T)()
     return NfOrderElem(O)
   end
+doc"""
+***
+    call(O::NfOrdCls, a::nf_elem, check::Bool = true) -> NfOrdElem
+
+> Given an element $a$ of the ambient number field of $\mathcal O$, this
+> function coerces the element into $\mathcal O$. It will be checked that $a$
+> is contained in $\mathcal O$ if and only if `check` is `true`.
+"""
+function call{T <: NfOrdCls}(O::T, a::nf_elem, check::Bool = true)
+  if check
+    (x,y) = _check_elem_in_order(a,O)
+    !x && error("Number field element not in the order")
+    return NfOrdElem{T}(O, deepcopy(a), y)
+  else
+    return NfOrdElem{T}(O, deepcopy(a))
+  end
+end
+
+doc"""
+***
+    call(O::NfOrdCls, a::Union{fmpz, Integer}) -> NfOrdElem
+
+> Given an element $a$ of type `fmpz` or `Integer`, this
+> function coerces the element into $\mathcal O$. It will be checked that $a$
+> is contained in $\mathcal O$ if and only if `check` is `true`.
+"""
+function call{T <: NfOrdCls}(O::T, a::Union{fmpz, Integer})
+  return NfOrdElem{T}(O, nf(O)(a))
+end
+
+doc"""
+***
+    call(O::NfOrdCls, arr::Array{fmpz, 1})
+
+> Returns the element of $\mathcal O$ with coefficient vector `arr`.
+"""
+function call{T <: NfOrdCls}(O::T, arr::Array{fmpz, 1})
+  return NfOrdElem{T}(O, deepcopy(arr))
+end
+
+doc"""
+***
+    call{T <: Integer}(O::NfOrdCls, arr::Array{T, 1})
+
+> Returns the element of $\mathcal O$ with coefficient vector `arr`.
+"""
+function call{T <: NfOrdCls, S <: Integer}(O::T, arr::Array{S, 1})
+  return NfOrdElem{T}(O, deepcopy(arr))
+end
+
+doc"""
+***
+    call(O::NfOrdCls, a::nf_elem, arr::Array{fmpz, 1}) -> NfOrdElem
+
+> This function constructs the element of $\mathcal O$ with coefficient vector
+> `arr`. It is assumed that the corresponding element of the ambient number
+> field is $a$.
+"""
+function call{T <: NfOrdCls}(O::T, a::nf_elem, arr::Array{fmpz, 1})
+  return NfOrdElem{T}(O, deepcopy(a), deepcopy(arr))
+end
+
+doc"""
+***
+    call(O::NfOrdCls) -> NfOrdElem
+
+> This function constructs a new element of $\mathcal O$ which is set to $0$.
+"""
+function call{T <: NfOrdCls}(O::T)
+  return NfOrdElem{T}(O)
 end
 
 ################################################################################
@@ -239,19 +309,19 @@ end
 
 doc"""
 ***
-    parent(a::NfOrderElem) -> GenNfOrd
+    parent(a::NfOrdElem) -> NfOrdCls
 
 > Returns the order of which $a$ is an element.
 """
-parent(a::NfOrderElem) = a.parent
+parent(a::NfOrdElem) = a.parent
 
 doc"""
 ***
-    elem_in_nf(a::NfOrderElem) -> nf_elem
+    elem_in_nf(a::NfOrdElem) -> nf_elem
 
 > Returns the element $a$ considered as an element of the ambient number field.
 """
-function elem_in_nf(a::NfOrderElem)
+function elem_in_nf(a::NfOrdElem)
   if isdefined(a, :elem_in_nf)
     return a.elem_in_nf
   end
@@ -260,12 +330,12 @@ end
 
 doc"""
 ***
-    elem_in_basis(a::NfOrderElem) -> Array{fmpz, 1}
+    elem_in_basis(a::NfOrdElem) -> Array{fmpz, 1}
 
 > Returns the coefficient vector of $a$.
 """
-function elem_in_basis(a::NfOrderElem)
-  @vprint :NfOrder 2 "Computing the coordinates of $a\n"
+function elem_in_basis(a::NfOrdElem)
+  @vprint :NfOrd 2 "Computing the coordinates of $a\n"
   if a.has_coord
     return a.elem_in_basis
   else
@@ -285,7 +355,7 @@ end
 
 # I don't think this is a good idea
 
-hash(x::NfOrderElem) = hash(elem_in_nf(x))
+hash(x::NfOrdElem) = hash(elem_in_nf(x))
 
 ################################################################################
 #
@@ -295,11 +365,11 @@ hash(x::NfOrderElem) = hash(elem_in_nf(x))
 
 doc"""
 ***
-    ==(x::NfOrderElem, y::NfOrderElem) -> Bool
+    ==(x::NfOrdElem, y::NfOrdElem) -> Bool
 
 > Returns whether $x$ and $y$ are equal.
 """
-==(x::NfOrderElem, y::NfOrderElem) = parent(x) == parent(y) &&
+==(x::NfOrdElem, y::NfOrdElem) = parent(x) == parent(y) &&
                                             x.elem_in_nf == y.elem_in_nf
 
 ################################################################################
@@ -310,11 +380,11 @@ doc"""
 
 doc"""
 ***
-    deepcopy(x::NfOrderElem) -> NfOrderElem
+    deepcopy(x::NfOrdElem) -> NfOrdElem
 
 > Returns a copy of $x$.
 """
-function deepcopy(x::NfOrderElem)
+function deepcopy(x::NfOrdElem)
   z = parent(x)()
   z.elem_in_nf = deepcopy(x.elem_in_nf)
   if x.has_coord
@@ -334,7 +404,7 @@ end
 # In this case, the second return value is the coefficient vector with respect
 # to the basis of O
 
-function _check_elem_in_order(a::nf_elem, O::GenNfOrd)
+function _check_elem_in_order(a::nf_elem, O::NfOrdCls)
   M = MatrixSpace(ZZ, 1, degree(O))()
   t = FakeFmpqMat(M)
   elem_to_mat_row!(t.num, 1, t.den, a)
@@ -348,11 +418,11 @@ end
 
 doc"""
 ***
-    in(a::nf_elem, O::GenNfOrd) -> Bool
+    in(a::nf_elem, O::NfOrdCls) -> Bool
 
 > Checks wether $a$ lies in $\mathcal O$.
 """
-function in(a::nf_elem, O::GenNfOrd)
+function in(a::nf_elem, O::NfOrdCls)
   (x,y) = _check_elem_in_order(a,O)
   return x
 end
@@ -365,11 +435,11 @@ end
 
 doc"""
 ***
-    den(a::nf_elem, O::GenNfOrd) -> fmpz
+    den(a::nf_elem, O::NfOrdCls) -> fmpz
 
 > Returns the smallest positive integer $k$ such that $k \cdot a$ lies in O.
 """
-function den(a::nf_elem, O::GenNfOrd)
+function den(a::nf_elem, O::NfOrdCls)
   d = den(a)
   b = d*a 
   M = MatrixSpace(ZZ, 1, degree(O))()
@@ -387,52 +457,52 @@ end
 
 doc"""
 ***
-    zero(O::GenNford) -> NfOrderElem
+    zero(O::GenNford) -> NfOrdElem
 
 > Returns an element of $\mathcal O$ which is set to zero.
 """
-zero(O::GenNfOrd) = O(fmpz(0))
+zero(O::NfOrdCls) = O(fmpz(0))
 
 doc"""
 ***
-    one(O::GenNfOrd) -> NfOrderElem
+    one(O::NfOrdCls) -> NfOrdElem
 
 > Returns an element of $\mathcal O$ which is set to one.
 """
-one(O::GenNfOrd) = O(fmpz(1))
+one(O::NfOrdCls) = O(fmpz(1))
 
 doc"""
 ***
-    zero(a::NfOrderElem) -> NfOrderElem
+    zero(a::NfOrdElem) -> NfOrdElem
 
 > Returns the zero in the same ring.
 """
-zero(a::NfOrderElem) = parent(a)(0)
+zero(a::NfOrdElem) = parent(a)(0)
 
 doc"""
 ***
-    one(O::GenNfOrd) -> NfOrderElem
+    one(O::NfOrdCls) -> NfOrdElem
 
 > Returns the one in the same ring.
 """
-one(a::NfOrderElem) = parent(a)(1)
+one(a::NfOrdElem) = parent(a)(1)
 
 
 doc"""
 ***
-    isone(a::GenNfOrd) -> Bool
+    isone(a::NfOrdCls) -> Bool
 
 > Tests if a is one.
 """
-isone(a::NfOrderElem) = isone(a.elem_in_nf)
+isone(a::NfOrdElem) = isone(a.elem_in_nf)
 
 doc"""
 ***
-    iszero(a::GenNfOrd) -> Bool
+    iszero(a::NfOrdCls) -> Bool
 
 > Tests if a is one.
 """
-iszero(a::NfOrderElem) = iszero(a.elem_in_nf)
+iszero(a::NfOrdElem) = iszero(a.elem_in_nf)
 
 
 
@@ -443,7 +513,7 @@ iszero(a::NfOrderElem) = iszero(a.elem_in_nf)
 #
 ################################################################################
 
-function show(io::IO, a::NfOrderElem)
+function show(io::IO, a::NfOrdElem)
   print(io, a.elem_in_nf)
 end
 
@@ -455,11 +525,11 @@ end
 
 doc"""
 ***
-    -(x::NfOrderElem) -> NfOrderElem
+    -(x::NfOrdElem) -> NfOrdElem
 
 > Returns the additive inverse of $x$.
 """
-function -(x::NfOrderElem)
+function -(x::NfOrdElem)
   z = parent(x)()
   z.elem_in_nf = - x.elem_in_nf
   return z
@@ -473,11 +543,11 @@ end
 
 doc"""
 ***
-    *(x::NfOrderElem, y::NfOrderElem) -> NfOrderElem
+    *(x::NfOrdElem, y::NfOrdElem) -> NfOrdElem
 
 > Returns $x \cdot y$.
 """
-function *(x::NfOrderElem, y::NfOrderElem)
+function *(x::NfOrdElem, y::NfOrdElem)
   z = parent(x)()
   z.elem_in_nf = x.elem_in_nf*y.elem_in_nf
   return z
@@ -485,11 +555,11 @@ end
 
 doc"""
 ***
-    +(x::NfOrderElem, y::NfOrderElem) -> NfOrderElem
+    +(x::NfOrdElem, y::NfOrdElem) -> NfOrdElem
 
 > Returns $x + y$.
 """
-function +(x::NfOrderElem, y::NfOrderElem)
+function +(x::NfOrdElem, y::NfOrdElem)
   z = parent(x)()
   z.elem_in_nf = x.elem_in_nf + y.elem_in_nf
   return z
@@ -497,11 +567,11 @@ end
 
 doc"""
 ***
-    -(x::NfOrderElem, y::NfOrderElem) -> NfOrderElem
+    -(x::NfOrdElem, y::NfOrdElem) -> NfOrdElem
 
 > Returns $x - y$.
 """
-function -(x::NfOrderElem, y::NfOrderElem)
+function -(x::NfOrdElem, y::NfOrdElem)
   z = parent(x)()
   z.elem_in_nf = x.elem_in_nf - y.elem_in_nf
   return z
@@ -515,66 +585,66 @@ end
 
 doc"""
 ***
-    *(x::NfOrderElem, y::Union{fmpz, Integer})
+    *(x::NfOrdElem, y::Union{fmpz, Integer})
 
 > Returns $x \cdot y$.
 """
-function *(x::NfOrderElem, y::Integer)
+function *(x::NfOrdElem, y::Integer)
   z = parent(x)()
   z.elem_in_nf = x.elem_in_nf * y
   return z
 end
 
-*(x::Integer, y::NfOrderElem) = y * x
+*(x::Integer, y::NfOrdElem) = y * x
 
-function *(x::NfOrderElem, y::fmpz)
+function *(x::NfOrdElem, y::fmpz)
   z = parent(x)()
   z.elem_in_nf = x.elem_in_nf * y
   return z
 end
 
-*(x::fmpz, y::NfOrderElem) = y * x
+*(x::fmpz, y::NfOrdElem) = y * x
 
-Base.dot(x::fmpz, y::NfOrderElem) = y*x
+Base.dot(x::fmpz, y::NfOrdElem) = y*x
 
 doc"""
 ***
-    +(x::NfOrderElem, y::Union{fmpz, Integer})
+    +(x::NfOrdElem, y::Union{fmpz, Integer})
 
 > Returns $x + y$.
 """
-function +(x::NfOrderElem, y::Integer)
+function +(x::NfOrdElem, y::Integer)
   z = parent(x)()
   z.elem_in_nf = x.elem_in_nf + y
   return z
 end
 
-+(x::Integer, y::NfOrderElem) = y + x
++(x::Integer, y::NfOrdElem) = y + x
 
-function +(x::NfOrderElem, y::fmpz)
+function +(x::NfOrdElem, y::fmpz)
   z = parent(x)()
   z.elem_in_nf = x.elem_in_nf + y
   return z
 end
 
-+(x::fmpz, y::NfOrderElem) = y + x
++(x::fmpz, y::NfOrdElem) = y + x
 
 doc"""
 ***
-    -(x::NfOrderElem, y::Union{fmpz, Integer})
+    -(x::NfOrdElem, y::Union{fmpz, Integer})
 
 > Returns $x - y$.
 """
-function -(x::NfOrderElem, y::Union{fmpz, Integer})
+function -(x::NfOrdElem, y::Union{fmpz, Integer})
   z = parent(x)()
   z.elem_in_nf = x.elem_in_nf - y
   return z
 end
 
--(x::Union{fmpz, Integer}, y::NfOrderElem) = y - x
+-(x::Union{fmpz, Integer}, y::NfOrdElem) = y - x
 
 # No sanity checks!
-function divexact(x::NfOrderElem, y::fmpz)
+function divexact(x::NfOrdElem, y::fmpz)
   z = parent(x)()
   z.elem_in_nf = divexact(x.elem_in_nf, y)
   return z
@@ -588,11 +658,11 @@ end
 
 doc"""
 ***
-    ^(x::NfOrderElem, y::Union{fmpz, Int})
+    ^(x::NfOrdElem, y::Union{fmpz, Int})
 
 > Returns $x^y$.
 """
-function ^(x::NfOrderElem, y::Union{fmpz, Int})
+function ^(x::NfOrdElem, y::Union{fmpz, Int})
   z = parent(x)()
   z.elem_in_nf = x.elem_in_nf^y
   return z
@@ -606,12 +676,12 @@ end
 
 doc"""
 ***
-    mod(a::NfOrderElem, m::Union{fmpz, Int}) -> NfOrderElem
+    mod(a::NfOrdElem, m::Union{fmpz, Int}) -> NfOrdElem
 
 > Reduces the coefficient vector of $a$ modulo $m$ and returns the corresponding
 > element.
 """
-function mod(a::NfOrderElem, m::Union{fmpz, Int})
+function mod(a::NfOrdElem, m::Union{fmpz, Int})
   ar = copy(elem_in_basis(a))
   for i in 1:degree(parent(a))
     ar[i] = mod(ar[i],m)
@@ -627,7 +697,7 @@ end
 
 doc"""
 ***
-    powermod(a::NfOrderElem, i::fmpz, m::Union{fmpz, Int}) -> NfOrderElem
+    powermod(a::NfOrdElem, i::fmpz, m::Union{fmpz, Int}) -> NfOrdElem
 
 > Returns the element $a^i$ modulo $m$.
 """
@@ -653,27 +723,27 @@ end
 
 doc"""
 ***
-    powermod(a::NfOrderElem, i::Integer, m::Integer) -> NfOrderElem
+    powermod(a::NfOrdElem, i::Integer, m::Integer) -> NfOrdElem
 
 > Returns the element $a^i$ modulo $m$.
 """
-powermod(a::NfOrderElem, i::Integer, m::Integer)  = powermod(a, fmpz(i), fmpz(m))
+powermod(a::NfOrdElem, i::Integer, m::Integer)  = powermod(a, fmpz(i), fmpz(m))
 
 doc"""
 ***
-    powermod(a::NfOrderElem, i::fmpz, m::Integer) -> NfOrderElem
+    powermod(a::NfOrdElem, i::fmpz, m::Integer) -> NfOrdElem
 
 > Returns the element $a^i$ modulo $m$.
 """
-powermod(a::NfOrderElem, i::fmpz, m::Integer)  = powermod(a, i, fmpz(m))
+powermod(a::NfOrdElem, i::fmpz, m::Integer)  = powermod(a, i, fmpz(m))
 
 doc"""
 ***
-    powermod(a::NfOrderElem, i::Integer, m::fmpz) -> NfOrderElem
+    powermod(a::NfOrdElem, i::Integer, m::fmpz) -> NfOrdElem
 
 > Returns the element $a^i$ modulo $m$.
 """
-powermod(a::NfOrderElem, i::Integer, m::fmpz)  = powermod(a, fmpz(i), m)
+powermod(a::NfOrdElem, i::Integer, m::fmpz)  = powermod(a, fmpz(i), m)
 
 ################################################################################
 #
@@ -683,11 +753,11 @@ powermod(a::NfOrderElem, i::Integer, m::fmpz)  = powermod(a, fmpz(i), m)
 
 doc"""
 ***
-    representation_mat(a::NfOrderElem) -> fmpz_mat
+    representation_mat(a::NfOrdElem) -> fmpz_mat
 
 > Returns the representation matrix of the element $a$.
 """
-function representation_mat(a::NfOrderElem)
+function representation_mat(a::NfOrdElem)
   O = parent(a)
   A = representation_mat(a, nf(parent(a)))
   A = basis_mat(O)*A*basis_mat_inv(O)
@@ -696,13 +766,13 @@ function representation_mat(a::NfOrderElem)
 end
 
 doc"""
-    representation_mat(a::NfOrderElem, K::AnticNumberField) -> FakeFmpqMat
+    representation_mat(a::NfOrdElem, K::AnticNumberField) -> FakeFmpqMat
 
 > Returns the representation matrix of the element $a$ considered as an element
 > of the ambient number field $K$. It is assumed that $K$ is the ambient number
 > field of the order of $a$.
 """
-function representation_mat(a::NfOrderElem, K::AnticNumberField)
+function representation_mat(a::NfOrdElem, K::AnticNumberField)
   nf(parent(a)) != K && error("Element not in this field")
   d = den(a.elem_in_nf)
   b = d*a.elem_in_nf
@@ -719,11 +789,11 @@ end
 
 doc"""
 ***
-    trace(a::NfOrderElem) -> fmpz
+    trace(a::NfOrdElem) -> fmpz
 
 > Returns the trace of $a$.
 """
-function trace(a::NfOrderElem)
+function trace(a::NfOrdElem)
   return FlintZZ(trace(elem_in_nf(a)))
 end
 
@@ -735,11 +805,11 @@ end
 
 doc"""
 ***
-    norm(a::NfOrderElem) -> fmpz
+    norm(a::NfOrdElem) -> fmpz
 
 > Returns the norm of $a$.
 """
-function norm(a::NfOrderElem)
+function norm(a::NfOrdElem)
   return FlintZZ(norm(elem_in_nf(a)))
 end
 
@@ -749,7 +819,7 @@ end
 #
 ################################################################################
 
-function rand!{T <: Integer}(z::NfOrderElem, O::GenNfOrd, R::UnitRange{T})
+function rand!{T <: Integer}(z::NfOrdElem, O::NfOrdCls, R::UnitRange{T})
   y = O()
   ar = rand(R, degree(O))
   B = basis(O)
@@ -763,34 +833,34 @@ end
 
 doc"""
 ***
-    rand{T <: Union{Integer, fmpz}}(O::GenNfOrd, R::UnitRange{T}) -> NfOrderElem
+    rand{T <: Union{Integer, fmpz}}(O::NfOrdCls, R::UnitRange{T}) -> NfOrdElem
 
 > Computes a coefficient vector with entries uniformly distributed in `R` and returns
 > the corresponding element of the order.
 """
-function rand{T <: Union{Integer, fmpz}}(O::GenNfOrd, R::UnitRange{T})
+function rand{T <: Union{Integer, fmpz}}(O::NfOrdCls, R::UnitRange{T})
   z = O()
   rand!(z, O, R)
   return z
 end
 
-function rand!(z::NfOrderElem, O::GenNfOrd, n::Union{Integer, fmpz})
+function rand!(z::NfOrdElem, O::NfOrdCls, n::Union{Integer, fmpz})
   return rand!(z, O, -n:n)
 end
 
 doc"""
 ***
-    rand(O::GenNfOrd, n::Union{Integer, fmpz}) -> NfOrderElem
+    rand(O::NfOrdCls, n::Union{Integer, fmpz}) -> NfOrdElem
 
 > Computes a coefficient vector with entries uniformly distributed in
 > $\{-n,\dotsc,-1,0,1,\dotsc,n\}$ and returns the corresponding element of the
 > order $\mathcal O$.
 """
-function rand(O::GenNfOrd, n::Integer)
+function rand(O::NfOrdCls, n::Integer)
   return rand(O, -n:n)
 end
 
-function rand!(z::NfOrderElem, O::GenNfOrd, n::fmpz)
+function rand!(z::NfOrdElem, O::NfOrdCls, n::fmpz)
   return rand!(z, O, BigInt(n))
 end
 
@@ -800,7 +870,7 @@ end
 #
 ################################################################################
 
-function add!(z::NfOrderElem, x::NfOrderElem, y::NfOrderElem)
+function add!(z::NfOrdElem, x::NfOrdElem, y::NfOrdElem)
   z.elem_in_nf = x.elem_in_nf + y.elem_in_nf
   if x.has_coord && y.has_coord
     for i in 1:degree(parent(x))
@@ -813,13 +883,13 @@ function add!(z::NfOrderElem, x::NfOrderElem, y::NfOrderElem)
   nothing
 end
 
-function mul!(z::NfOrderElem, x::NfOrderElem, y::NfOrderElem)
+function mul!(z::NfOrdElem, x::NfOrdElem, y::NfOrdElem)
   z.elem_in_nf = x.elem_in_nf * y.elem_in_nf
   z.has_coord = false
   nothing
 end
 
-function mul!(z::NfOrderElem, x::fmpz, y::NfOrderElem)
+function mul!(z::NfOrdElem, x::fmpz, y::NfOrdElem)
   z.elem_in_nf = x * y.elem_in_nf
   if y.has_coord
     for i in 1:degree(parent(z))
@@ -832,25 +902,25 @@ function mul!(z::NfOrderElem, x::fmpz, y::NfOrderElem)
   nothing
 end
 
-mul!(z::NfOrderElem, x::Integer, y::NfOrderElem) =  mul!(z, ZZ(x), y)
+mul!(z::NfOrdElem, x::Integer, y::NfOrdElem) =  mul!(z, ZZ(x), y)
 
-mul!(z::NfOrderElem, x::NfOrderElem, y::Integer) = mul!(z, y, x)
+mul!(z::NfOrdElem, x::NfOrdElem, y::Integer) = mul!(z, y, x)
 
-function add!(z::NfOrderElem, x::fmpz, y::NfOrderElem)
+function add!(z::NfOrdElem, x::fmpz, y::NfOrdElem)
   z.elem_in_nf = y.elem_in_nf + x
   nothing
 end
 
-add!(z::NfOrderElem, x::NfOrderElem, y::fmpz) = add!(z, y, x)
+add!(z::NfOrdElem, x::NfOrdElem, y::fmpz) = add!(z, y, x)
 
-function add!(z::NfOrderElem, x::Integer, y::NfOrderElem)
+function add!(z::NfOrdElem, x::Integer, y::NfOrdElem)
   z.elem_in_nf = x + y.elem_in_nf
   nothing
 end
 
-add!(z::NfOrderElem, x::NfOrderElem, y::Integer) = add!(z, y, x)
+add!(z::NfOrdElem, x::NfOrdElem, y::Integer) = add!(z, y, x)
 
-mul!(z::NfOrderElem, x::NfOrderElem, y::fmpz) = mul!(z, y, x)
+mul!(z::NfOrdElem, x::NfOrdElem, y::fmpz) = mul!(z, y, x)
 
 ################################################################################
 #
@@ -862,7 +932,7 @@ dot(x::fmpz, y::nf_elem) = x*y
 
 dot(x::nf_elem, y::fmpz) = x*y
 
-dot(x::NfOrderElem, y::Int64) = y*x
+dot(x::NfOrdElem, y::Int64) = y*x
 
 ################################################################################
 #
@@ -870,7 +940,7 @@ dot(x::NfOrderElem, y::Int64) = y*x
 #
 ################################################################################
 
-Base.call(K::AnticNumberField, x::NfOrderElem) = elem_in_nf(x)
+Base.call(K::AnticNumberField, x::NfOrdElem) = elem_in_nf(x)
 
 ################################################################################
 #
@@ -880,13 +950,13 @@ Base.call(K::AnticNumberField, x::NfOrderElem) = elem_in_nf(x)
 
 doc"""
 ***
-    minkowski_map(a::NfOrderElem, abs_tol::Int) -> Array{arb, 1}
+    minkowski_map(a::NfOrdElem, abs_tol::Int) -> Array{arb, 1}
 
 > Returns the image of $a$ under the Minkowski embedding.
 > Every entry of the array returned is of type `arb` with radius less then
 > `2^abs_tol`.
 """
-function minkowski_map(a::NfOrderElem, abs_tol::Int)
+function minkowski_map(a::NfOrdElem, abs_tol::Int)
   # Use a.elem_in_nf instead of elem_in_nf(a) to avoid copying the data.
   # The function minkowski_map does not alter the input!
   return minkowski_map(a.elem_in_nf, abs_tol)
@@ -900,7 +970,7 @@ end
 
 doc"""
 ***
-    conjugates_arb(x::NfOrderElem, abs_tol::Int) -> Tuple{Array{arb, 1}, Array{acb, 1}}
+    conjugates_arb(x::NfOrdElem, abs_tol::Int) -> Tuple{Array{arb, 1}, Array{acb, 1}}
 
 > Compute the the conjugates of `x` as elements of type `arb` and `acb`
 > respectively. Recall that we order the complex conjugates
@@ -910,7 +980,7 @@ doc"""
 > Every entry `y` of the arrays returned satisfies `radius(y) < 2^abs_tol` or
 > `radius(real(y)) < 2^abs_tol`, `radius(imag(y)) < 2^abs_tol` respectively.
 """
-function conjugates_arb(x::NfOrderElem, abs_tol::Int)
+function conjugates_arb(x::NfOrdElem, abs_tol::Int)
   # Use a.elem_in_nf instead of elem_in_nf(a) to avoid copying the data.
   # The function minkowski_map does not alter the input!
   return conjugates_arb(x.elem_in_nf, abs_tol)
@@ -918,7 +988,7 @@ end
 
 doc"""
 ***
-    conjugates_log(x::NfOrderElem, abs_tol::Int) -> Array{arb, 1}
+    conjugates_log(x::NfOrdElem, abs_tol::Int) -> Array{arb, 1}
 
 > Returns the elements
 > $(\log(\lvert \sigma_1(x) \rvert),\dotsc,\log(\lvert\sigma_r(x) \rvert),
@@ -926,35 +996,35 @@ doc"""
 > 2\log(\lvert \sigma_{r+s}(x)\rvert))$ as elements of type `arb` radius
 > less then `2^abs_tol`.
 """
-function conjugates_log(x::NfOrderElem)
+function conjugates_log(x::NfOrdElem)
   return conjugates_log(x.elem_in_nf)
 end
 
 ################################################################################
 ################################################################################
 ##
-##  GenNfOrdIdl : Ideals in GenNfOrd
+##  NfOrdClsIdl : Ideals in NfOrdCls
 ##
 ################################################################################
 ################################################################################
 
 doc"""
 ***
-    ==(x::GenNfOrdIdl, y::GenNfOrdIdl)
+    ==(x::NfOrdClsIdl, y::NfOrdClsIdl)
 
 > Returns whether $x$ and $y$ are equal.
 """
-function ==(x::GenNfOrdIdl, y::GenNfOrdIdl)
+function ==(x::NfOrdClsIdl, y::NfOrdClsIdl)
   return basis_mat(x) == basis_mat(y)
 end
 
 doc"""
 ***
-    +(x::GenNfOrdIdl, y::GenNfOrdIdl)
+    +(x::NfOrdClsIdl, y::NfOrdClsIdl)
 
 > Returns $x + y$.
 """
-function +(x::GenNfOrdIdl, y::GenNfOrdIdl)
+function +(x::NfOrdClsIdl, y::NfOrdClsIdl)
   d = degree(order(x))
   H = vcat(basis_mat(x), basis_mat(y))
   g = gcd(minimum(x),minimum(y))
@@ -965,15 +1035,15 @@ end
 
 doc"""
 ***
-    *(x::GenNfOrdIdl, y::GenNfOrdIdl)
+    *(x::NfOrdClsIdl, y::NfOrdClsIdl)
 
 > Returns $x \cdot y$.
 """
-function *(x::GenNfOrdIdl, y::GenNfOrdIdl)
+function *(x::NfOrdClsIdl, y::NfOrdClsIdl)
   return _mul(x, y)
 end
 
-function _mul(x::GenNfOrdIdl, y::GenNfOrdIdl)
+function _mul(x::NfOrdClsIdl, y::NfOrdClsIdl)
   O = order(x)
   l = minimum(x)*minimum(y)
   z = MatrixSpace(FlintZZ, degree(O)*degree(O), degree(O))()
@@ -998,11 +1068,11 @@ end
 
 doc"""
 ***
-    in(x::NfOrderElem, y::GenNfOrdIdl)
+    in(x::NfOrdElem, y::NfOrdClsIdl)
 
 > Returns whether $x$ is contained in $y$.
 """
-function in(x::NfOrderElem, y::GenNfOrdIdl)
+function in(x::NfOrdElem, y::NfOrdClsIdl)
   v = transpose(MatrixSpace(FlintZZ, degree(parent(x)), 1)(elem_in_basis(x)))
   t = FakeFmpqMat(v, fmpz(1))*basis_mat_inv(y)
   return t.den == 1
@@ -1016,7 +1086,7 @@ end
 
 doc"""
 ***
-    mod(x::NfOrderElem, I::GenNfOrdIdl)
+    mod(x::NfOrdElem, I::NfOrdClsIdl)
 
 > Returns the unique element $y$ of the ambient order of $x$ with
 > $x \equiv y \bmod I$ and the following property: If
@@ -1024,7 +1094,7 @@ doc"""
 > basis matrix of $I$ and $(b_1,\dotsc,b_d)$ is the coefficient vector of $y$,
 > then $0 \leq b_i < a_i$ for $1 \leq i \leq d$.
 """
-function mod(x::NfOrderElem, y::GenNfOrdIdl)
+function mod(x::NfOrdElem, y::NfOrdClsIdl)
   # this function assumes that HNF is lower left
   # !!! This must be changed as soon as HNF has a different shape
   O = order(y)
@@ -1049,14 +1119,14 @@ end
 
 doc"""
 ***
-    pradical(O::GenNfOrd, p::fmpz) -> GenNfOrdIdl
+    pradical(O::NfOrdCls, p::fmpz) -> NfOrdClsIdl
 
 > Given a prime number $p$, this function returns the $p$-radical
 > $\sqrt{p\mathcal O}$ of $\mathcal O$, which is 
 > just $\{ x \in \mathcal O \mid \exists k \in \mathbf Z_{\geq 0} \colon x^k
 > \in p\mathcal O \}$. It is not checked that $p$ is prime.
 """
-function pradical(O::GenNfOrd, p::fmpz)
+function pradical(O::NfOrdCls, p::fmpz)
   j = clog(fmpz(degree(O)),p)
 
   @assert p^(j-1) < degree(O)
@@ -1089,14 +1159,14 @@ end
 
 doc"""
 ***
-    pradical(O::GenNfOrd, p::Integer) -> GenNfOrdIdl
+    pradical(O::NfOrdCls, p::Integer) -> NfOrdClsIdl
 
 > Given a prime number $p$, this function returns the $p$-radical
 > $\sqrt{p\mathcal O}$ of $\mathcal O$, which is 
 > just $\{ x \in \mathcal O \mid \exists k \in \mathbf Z_{\geq 0} \colon x^k
 > \in p\mathcal O \}$. It is not checked that $p$ is prime.
 """
-function pradical(O::GenNfOrd, p::Integer)
+function pradical(O::NfOrdCls, p::Integer)
   return pradical(O, fmpz(p))
 end
 
@@ -1106,4 +1176,4 @@ end
 #
 ################################################################################
 
-Base.promote_rule{T <: Integer}(::Type{NfOrderElem}, ::Type{T}) = NfOrderElem
+Base.promote_rule{T <: Integer}(::Type{NfOrdElem}, ::Type{T}) = NfOrdElem
