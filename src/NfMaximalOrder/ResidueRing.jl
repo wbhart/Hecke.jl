@@ -474,7 +474,7 @@ function _pivot(A, start_row, col)
   return 0
 end
 
-function strong_echelon_form(A::Mat{NfMaxOrdQuoRingElem})
+function Nemo.strong_echelon_form(A::Mat{NfMaxOrdQuoRingElem})
   B = deepcopy(A)
 
   if rows(B) < cols(B)
@@ -523,7 +523,7 @@ end
 #
 ################################################################################
 
-function strong_echelon_form!(A::Mat{NfMaxOrdQuoRingElem})
+function Nemo.strong_echelon_form!(A::Mat{NfMaxOrdQuoRingElem})
   #A = deepcopy(B)
   n = rows(A)
   m = cols(A)
@@ -577,7 +577,7 @@ end
 #
 ################################################################################
 
-function howell_form!(A::Mat{NfMaxOrdQuoRingElem})
+function Nemo.howell_form!(A::Mat{NfMaxOrdQuoRingElem})
   @assert rows(A) >= cols(A)
 
   k = rows(A)
@@ -600,7 +600,7 @@ function howell_form!(A::Mat{NfMaxOrdQuoRingElem})
   return k
 end
 
-function howell_form(A::Mat{NfMaxOrdQuoRingElem})
+function Nemo.howell_form(A::Mat{NfMaxOrdQuoRingElem})
   B = deepcopy(A)
 
   if rows(B) < cols(B)
