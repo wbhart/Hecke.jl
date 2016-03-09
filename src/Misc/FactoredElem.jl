@@ -207,7 +207,7 @@ doc"""
 > Expands or evaluates the factored element, i.e. actually computes the
 > value. 
 """
-function evaluate{T}(x::FactoredElem{T})
+function evaluate{T}(x::FacElem{T})
   function ev{T}(d::Dict{T, fmpz})
     z = one(base_ring(x))
     if length(d)==0

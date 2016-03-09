@@ -149,158 +149,160 @@ end
 
 #doc"""
 #***
-#    call(O::GenNfOrd, a::nf_elem, check::Bool = true) -> NfOrderElem
+#    call(O::NfOrdCls, a::nf_elem, check::Bool = true) -> NfOrdElem
 #
 #> Given an element $a$ of the ambient number field of $\mathcal O$, this
 #> function coerces the element into $\mathcal O$. It will be checked that $a$
 #> is contained in $\mathcal O$ if and only if `check` is `true`.
 #"""
-for T in subtypes(GenNfOrd)
+for T in subtypes(NfOrdCls)
   function (O::T)(a::nf_elem, check::Bool = true)
     if check
       (x,y) = _check_elem_in_order(a,O)
       !x && error("Number field element not in the order")
-      return NfOrderElem(O, deepcopy(a), y)
+      return NfOrdElem(O, deepcopy(a), y)
     else
-      return NfOrderElem(O, deepcopy(a))
+      return NfOrdElem(O, deepcopy(a))
     end
   end
 end
 
 #doc"""
 #***
-#    call(O::GenNfOrd, a::Union{fmpz, Integer}) -> NfOrderElem
+#    call(O::NfOrdCls, a::Union{fmpz, Integer}) -> NfOrdElem
 #
 #> Given an element $a$ of type `fmpz` or `Integer`, this
 #> function coerces the element into $\mathcal O$. It will be checked that $a$
 #> is contained in $\mathcal O$ if and only if `check` is `true`.
 #"""
-for T in subtypes(GenNfOrd)
+for T in subtypes(NfOrdCls)
   function (O::T)(a::Union{fmpz, Integer})
-    return NfOrderElem(O, nf(O)(a))
+    return NfOrdElem(O, nf(O)(a))
   end
 end
 
 #doc"""
 #***
-#    call(O::GenNfOrd, arr::Array{fmpz, 1})
+#    call(O::NfOrdCls, arr::Array{fmpz, 1})
 #
 #> Returns the element of $\mathcal O$ with coefficient vector `arr`.
 #"""
-for T in subtypes(GenNfOrd)
+for T in subtypes(NfOrdCls)
   function (O::T)(arr::Array{fmpz, 1})
-    return NfOrderElem(O, deepcopy(arr))
+    return NfOrdElem(O, deepcopy(arr))
   end
 end
 
 #doc"""
 #***
-#    call{T <: Integer}(O::GenNfOrd, arr::Array{T, 1})
+#    call{T <: Integer}(O::NfOrdCls, arr::Array{T, 1})
 #
 #> Returns the element of $\mathcal O$ with coefficient vector `arr`.
 #"""
-#for T in subtypes(GenNfOrd)
+#for T in subtypes(NfOrdCls)
 #  (O::T)(arr::Array{Integer, 1})
-#    return NfOrderElem(O, deepcopy(arr))
+#    return NfOrdElem(O, deepcopy(arr))
 #  end  
 #end
 
 #doc"""
 #***
-#    call(O::GenNfOrd, a::nf_elem, arr::Array{fmpz, 1}) -> NfOrderElem
+#    call(O::NfOrdCls, a::nf_elem, arr::Array{fmpz, 1}) -> NfOrdElem
 #
 #> This function constructs the element of $\mathcal O$ with coefficient vector
 #> `arr`. It is assumed that the corresponding element of the ambient number
 #> field is $a$.
 #"""
-for T in subtypes(GenNfOrd)
+for T in subtypes(NfOrdCls)
   function (O::T)(a::nf_elem, arr::Array{fmpz, 1})
-    return NfOrderElem(O, deepcopy(a), deepcopy(arr))
+    return NfOrdElem(O, deepcopy(a), deepcopy(arr))
   end
 end
 
 #doc"""
 #***
-#    call(O::GenNfOrd) -> NfOrderElem
+#    call(O::NfOrdCls) -> NfOrdElem
 #
 #> This function constructs a new element of $\mathcal O$ which is set to $0$.
 #"""
-for T in subtypes(GenNfOrd)
+for T in subtypes(NfOrdCls)
   function (O::T)()
-    return NfOrderElem(O)
+    return NfOrdElem(O)
   end
-doc"""
-***
-    call(O::NfOrdCls, a::nf_elem, check::Bool = true) -> NfOrdElem
+end  
 
-> Given an element $a$ of the ambient number field of $\mathcal O$, this
-> function coerces the element into $\mathcal O$. It will be checked that $a$
-> is contained in $\mathcal O$ if and only if `check` is `true`.
-"""
-function call{T <: NfOrdCls}(O::T, a::nf_elem, check::Bool = true)
-  if check
-    (x,y) = _check_elem_in_order(a,O)
-    !x && error("Number field element not in the order")
-    return NfOrdElem{T}(O, deepcopy(a), y)
-  else
-    return NfOrdElem{T}(O, deepcopy(a))
-  end
-end
-
-doc"""
-***
-    call(O::NfOrdCls, a::Union{fmpz, Integer}) -> NfOrdElem
-
-> Given an element $a$ of type `fmpz` or `Integer`, this
-> function coerces the element into $\mathcal O$. It will be checked that $a$
-> is contained in $\mathcal O$ if and only if `check` is `true`.
-"""
-function call{T <: NfOrdCls}(O::T, a::Union{fmpz, Integer})
-  return NfOrdElem{T}(O, nf(O)(a))
-end
-
-doc"""
-***
-    call(O::NfOrdCls, arr::Array{fmpz, 1})
-
-> Returns the element of $\mathcal O$ with coefficient vector `arr`.
-"""
-function call{T <: NfOrdCls}(O::T, arr::Array{fmpz, 1})
-  return NfOrdElem{T}(O, deepcopy(arr))
-end
-
-doc"""
-***
-    call{T <: Integer}(O::NfOrdCls, arr::Array{T, 1})
-
-> Returns the element of $\mathcal O$ with coefficient vector `arr`.
-"""
-function call{T <: NfOrdCls, S <: Integer}(O::T, arr::Array{S, 1})
-  return NfOrdElem{T}(O, deepcopy(arr))
-end
-
-doc"""
-***
-    call(O::NfOrdCls, a::nf_elem, arr::Array{fmpz, 1}) -> NfOrdElem
-
-> This function constructs the element of $\mathcal O$ with coefficient vector
-> `arr`. It is assumed that the corresponding element of the ambient number
-> field is $a$.
-"""
-function call{T <: NfOrdCls}(O::T, a::nf_elem, arr::Array{fmpz, 1})
-  return NfOrdElem{T}(O, deepcopy(a), deepcopy(arr))
-end
-
-doc"""
-***
-    call(O::NfOrdCls) -> NfOrdElem
-
-> This function constructs a new element of $\mathcal O$ which is set to $0$.
-"""
-function call{T <: NfOrdCls}(O::T)
-  return NfOrdElem{T}(O)
-end
-
+#doc"""
+#***
+#    call(O::NfOrdCls, a::nf_elem, check::Bool = true) -> NfOrdElem
+#
+#> Given an element $a$ of the ambient number field of $\mathcal O$, this
+#> function coerces the element into $\mathcal O$. It will be checked that $a$
+#> is contained in $\mathcal O$ if and only if `check` is `true`.
+#"""
+#function call{T <: NfOrdCls}(O::T, a::nf_elem, check::Bool = true)
+#  if check
+#    (x,y) = _check_elem_in_order(a,O)
+#    !x && error("Number field element not in the order")
+#    return NfOrdElem{T}(O, deepcopy(a), y)
+#  else
+#    return NfOrdElem{T}(O, deepcopy(a))
+#  end
+#end
+#
+#doc"""
+#***
+#    call(O::NfOrdCls, a::Union{fmpz, Integer}) -> NfOrdElem
+#
+#> Given an element $a$ of type `fmpz` or `Integer`, this
+#> function coerces the element into $\mathcal O$. It will be checked that $a$
+#> is contained in $\mathcal O$ if and only if `check` is `true`.
+#"""
+#function call{T <: NfOrdCls}(O::T, a::Union{fmpz, Integer})
+#  return NfOrdElem{T}(O, nf(O)(a))
+#end
+#
+#doc"""
+#***
+#    call(O::NfOrdCls, arr::Array{fmpz, 1})
+#
+#> Returns the element of $\mathcal O$ with coefficient vector `arr`.
+#"""
+#function call{T <: NfOrdCls}(O::T, arr::Array{fmpz, 1})
+#  return NfOrdElem{T}(O, deepcopy(arr))
+#end
+#
+#doc"""
+#***
+#    call{T <: Integer}(O::NfOrdCls, arr::Array{T, 1})
+#
+#> Returns the element of $\mathcal O$ with coefficient vector `arr`.
+#"""
+#function call{T <: NfOrdCls, S <: Integer}(O::T, arr::Array{S, 1})
+#  return NfOrdElem{T}(O, deepcopy(arr))
+#end
+#
+#doc"""
+#***
+#    call(O::NfOrdCls, a::nf_elem, arr::Array{fmpz, 1}) -> NfOrdElem
+#
+#> This function constructs the element of $\mathcal O$ with coefficient vector
+#> `arr`. It is assumed that the corresponding element of the ambient number
+#> field is $a$.
+#"""
+#function call{T <: NfOrdCls}(O::T, a::nf_elem, arr::Array{fmpz, 1})
+#  return NfOrdElem{T}(O, deepcopy(a), deepcopy(arr))
+#end
+#
+#doc"""
+#***
+#    call(O::NfOrdCls) -> NfOrdElem
+#
+#> This function constructs a new element of $\mathcal O$ which is set to $0$.
+#"""
+#function call{T <: NfOrdCls}(O::T)
+#  return NfOrdElem{T}(O)
+#end
+#
 ################################################################################
 #
 #  Field access
@@ -404,7 +406,7 @@ end
 # In this case, the second return value is the coefficient vector with respect
 # to the basis of O
 
-function _check_elem_in_order(a::nf_elem, O::NfOrdCls)
+function _check_elem_in_order{T<:NfOrdCls}(a::nf_elem, O::T)
   M = MatrixSpace(ZZ, 1, degree(O))()
   t = FakeFmpqMat(M)
   elem_to_mat_row!(t.num, 1, t.den, a)
@@ -422,7 +424,7 @@ doc"""
 
 > Checks wether $a$ lies in $\mathcal O$.
 """
-function in(a::nf_elem, O::NfOrdCls)
+function in{T<:NfOrdCls}(a::nf_elem, O::T)
   (x,y) = _check_elem_in_order(a,O)
   return x
 end
@@ -439,7 +441,7 @@ doc"""
 
 > Returns the smallest positive integer $k$ such that $k \cdot a$ lies in O.
 """
-function den(a::nf_elem, O::NfOrdCls)
+function den{T<:NfOrdCls}(a::nf_elem, O::T)
   d = den(a)
   b = d*a 
   M = MatrixSpace(ZZ, 1, degree(O))()
@@ -457,11 +459,11 @@ end
 
 doc"""
 ***
-    zero(O::GenNford) -> NfOrdElem
+    zero(O::NfOrdCls) -> NfOrdElem
 
 > Returns an element of $\mathcal O$ which is set to zero.
 """
-zero(O::NfOrdCls) = O(fmpz(0))
+zero{T <: NfOrdCls}(O::T) = O(fmpz(0))
 
 doc"""
 ***
@@ -469,7 +471,7 @@ doc"""
 
 > Returns an element of $\mathcal O$ which is set to one.
 """
-one(O::NfOrdCls) = O(fmpz(1))
+one{T<:NfOrdCls}(O::T) = O(fmpz(1))
 
 doc"""
 ***
@@ -702,7 +704,7 @@ doc"""
 > Returns the element $a^i$ modulo $m$.
 """
 
-function powermod(a::NfOrderElem, i::fmpz, p::fmpz)
+function powermod(a::NfOrdElem, i::fmpz, p::fmpz)
   if i == 0
     return one(parent(a))
   end
