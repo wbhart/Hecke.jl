@@ -199,11 +199,9 @@ end
 #
 #> Returns the element of $\mathcal O$ with coefficient vector `arr`.
 #"""
-#for T in subtypes(GenNfOrd)
-#  (O::T)(arr::Array{Integer, 1})
-#    return NfOrderElem(O, deepcopy(arr))
-#  end  
-#end
+for T in subtypes(GenNfOrd)
+  (O::T){S <: Integer}(arr::Array{S, 1}) = NfOrderElem(O, deepcopy(arr))
+end
 
 #doc"""
 #***

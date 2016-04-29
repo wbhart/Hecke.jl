@@ -107,7 +107,7 @@ type ResidueRingPolyMap{D, C, T} <: Map{D, C}
     end
     
     # I need to call preimage in _preimage
-    function _preimage{T}(a::Residue{T})
+    _preimage = function(a::Residue)
       R = codomain
       parent(a) == R || throw("mixed rings in preimage")
       g = gens(domain)
