@@ -1,6 +1,6 @@
 export dedekind_test, dedekind_poverorder, dedekind_ispmaximal
 
-function dedekind_ispmaximal(O::NfOrder, p::fmpz)
+function dedekind_ispmaximal(O::NfOrd, p::fmpz)
   !isequationorder(O) && error("Order must be an equation order")
   if rem(discriminant(O), p) != 0
     return true, O
@@ -10,7 +10,7 @@ function dedekind_ispmaximal(O::NfOrder, p::fmpz)
 
   p
   Zy, y = PolynomialRing(ZZ, "y")
-  Kx, x = PolynomialRing(ResidueRing(ZZ, p), "x")
+  Kx, x = PolynomialRing(ResidueRing(ZZ, p, cached=false), "x", cached=false)
 
   f = nf(O).pol
 
@@ -39,7 +39,7 @@ function dedekind_ispmaximal(O::NfOrder, p::fmpz)
 
   U = one(Kx)
 
-  for (fi,e1) in fac
+  for (fi,ei) in fac
     if ei != 1 && rem(gmodp, fi) == zero(Kx)
       U *= fi
       return false
@@ -49,20 +49,20 @@ function dedekind_ispmaximal(O::NfOrder, p::fmpz)
   return true
 end
 
-function dedekind_ispmaximal(O::NfOrder, p::Integer)
+function dedekind_ispmaximal(O::NfOrd, p::Integer)
   return dedekind_ispmaximal(O, ZZ(p))
 end
 
-function dedekind_poverorder(O::NfOrder, p::fmpz)
+function dedekind_poverorder(O::NfOrd, p::fmpz)
   _, O = dedekind_test(O, p)
   return O
 end
 
-function dedekind_poverorder(O::NfOrder, p::Integer)
+function dedekind_poverorder(O::NfOrd, p::Integer)
   return dedekind_poverorder(O, ZZ(p))
 end
 
-function dedekind_test(O::NfOrder, p::fmpz)
+function dedekind_test(O::NfOrd, p::fmpz)
   !isequationorder(O) && error("Order must be an equation order")
   
   if rem(discriminant(O), p) != 0
@@ -74,7 +74,7 @@ function dedekind_test(O::NfOrder, p::fmpz)
   p 
   
   Zy, y = PolynomialRing(ZZ, "y")
-  Kx, x = PolynomialRing(ResidueRing(ZZ, p), "x")
+  Kx, x = PolynomialRing(ResidueRing(ZZ, p, cached=false), "x", cached=false)
 
 
   f = nf(O).pol
@@ -105,7 +105,7 @@ function dedekind_test(O::NfOrder, p::fmpz)
 
   U = one(Kx)
 
-  for (fi, e1) in fac
+  for (fi, ei) in fac
     if ei != 1 && rem(gmodp, fi) == zero(Kx)
       U *= fi
       pmaximal=false
@@ -139,6 +139,6 @@ function dedekind_test(O::NfOrder, p::fmpz)
   return false, OO
 end
 
-function dedekind_test(O::NfOrder, p::Integer)
+function dedekind_test(O::NfOrd, p::Integer)
   return dedekind_test(O, ZZ(p))
 end

@@ -1,4 +1,4 @@
-export FactoredElem, FactoredElemMon
+export FacElem, FacElemMon
 
 export transform
 
@@ -10,21 +10,21 @@ export transform
 
 # abstract nonsense
 
-const FactoredElemMonDict = ObjectIdDict()
+const FacElemMonDict = ObjectIdDict()
 
-function call{T}(x::FactoredElemMon{T})
-  z = FactoredElem{T}()
+function call{T}(x::FacElemMon{T})
+  z = FacElem{T}()
   z.parent = x
   return z
 end
     
-function FactoredElem{B}(base::Array{B, 1}, exp::Array{fmpz, 1})
+function FacElem{B}(base::Array{B, 1}, exp::Array{fmpz, 1})
 
   length(base) == 0 && error("Array must not be empty")
 
   length(base) != length(exp) && error("not the same length")
 
-  z = FactoredElem{B}()
+  z = FacElem{B}()
 
   for i in 1:length(base)
     if exp[i] == 0
@@ -33,20 +33,20 @@ function FactoredElem{B}(base::Array{B, 1}, exp::Array{fmpz, 1})
     z.fac[base[i]] = exp[i]
   end
 
-  z.parent = FactoredElemMon{typeof(base[1])}(parent(base[1]))
+  z.parent = FacElemMon{typeof(base[1])}(parent(base[1]))
   return z
 end
 
-parent(x::FactoredElem) = x.parent
+parent(x::FacElem) = x.parent
 
-base_ring(x::FactoredElemMon) = x.base_ring
+base_ring(x::FacElemMon) = x.base_ring
 
-base_ring(x::FactoredElem) = base_ring(parent(x))
+base_ring(x::FacElem) = base_ring(parent(x))
 
-base(x::FactoredElem) = keys(x.fac)
+base(x::FacElem) = keys(x.fac)
 
-function deepcopy{B}(x::FactoredElem{B})
-  z = FactoredElem{B}()
+function deepcopy{B}(x::FacElem{B})
+  z = FacElem{B}()
   z.fac = _deepcopy(x.fac)
   if isdefined(x, :parent)
     z.parent = x.parent
@@ -60,12 +60,26 @@ end
 #
 ################################################################################
 
-function show(io::IO, x::FactoredElemMon)
+function show(io::IO, x::FacElemMon)
   print(io, "Factored elements over $(x.base_ring)")
 end
 
-function show(io::IO, x::FactoredElem)
+function show(io::IO, x::FacElem)
   print(io, "Factored element with data\n$(x.fac)")
+end
+
+################################################################################
+#
+#  Inverse
+#
+################################################################################
+
+function inv(x::FacElem{nf_elem})
+  y = deepcopy(x)
+  for a in base(y)
+    y.fac[a] = -y.fac[a]
+  end
+  return y
 end
 
 ################################################################################
@@ -74,8 +88,7 @@ end
 #
 ################################################################################
 
-
-function pow!{T <: Union{fmpz, Integer}}(z::FactoredElem, x::FactoredElem, y::T)
+function pow!{T <: Union{fmpz, Integer}}(z::FacElem, x::FacElem, y::T)
   z.fac = _deepcopy(x.fac)
   for a in base(x)
     # this should be inplac
@@ -83,7 +96,7 @@ function pow!{T <: Union{fmpz, Integer}}(z::FactoredElem, x::FactoredElem, y::T)
   end
 end
 
-function ^(x::FactoredElem, y::fmpz)
+function ^(x::FacElem, y::fmpz)
   z = parent(x)()
   if y == 0
     return z
@@ -97,7 +110,7 @@ function ^(x::FactoredElem, y::fmpz)
   end
 end
 
-^(x::FactoredElem, y::Integer) = ^(x, fmpz(y))
+^(x::FacElem, y::Integer) = ^(x, fmpz(y))
 
 ################################################################################
 #
@@ -105,7 +118,7 @@ end
 #
 ################################################################################
 
-function mul!{B}(z::FactoredElem{B}, x::FactoredElem{B}, y::FactoredElem{B})
+function mul!{B}(z::FacElem{B}, x::FacElem{B}, y::FacElem{B})
   z.fac = _deepcopy(x.fac)
   for a in base(y)
     if haskey(x.fac, a)
@@ -116,7 +129,7 @@ function mul!{B}(z::FactoredElem{B}, x::FactoredElem{B}, y::FactoredElem{B})
   end
 end
 
-function *{B}(x::FactoredElem{B}, y::FactoredElem{B})
+function *{B}(x::FacElem{B}, y::FacElem{B})
   z = deepcopy(x)
   for a in base(y)
     if haskey(x.fac, a)
@@ -128,7 +141,7 @@ function *{B}(x::FactoredElem{B}, y::FactoredElem{B})
   return z
 end
 
-function *{B}(x::FactoredElem{B}, y::B)
+function *{B}(x::FacElem{B}, y::B)
   z = deepcopy(x)
   if haskey(x.fac, y)
     z.fac[y] = z.fac[y] + 1
@@ -138,7 +151,7 @@ function *{B}(x::FactoredElem{B}, y::B)
   return z
 end
 
-function div{B}(x::FactoredElem{B}, y::FactoredElem{B})
+function div{B}(x::FacElem{B}, y::FacElem{B})
   z = deepcopy(x)
   for a in base(y)
     if haskey(x.fac, a)
@@ -156,11 +169,11 @@ end
 #
 ################################################################################
 
-function transform{T}(x::Array{FactoredElem{T}, 1}, y::fmpz_mat)
+function _transform{T}(x::Array{FacElem{T}, 1}, y::fmpz_mat)
   length(x) != rows(y) &&
               error("Length of array must be number of rows of matrix")
 
-  z = Array(FactoredElem{T}, cols(y))
+  z = Array(FacElem{T}, cols(y))
 
   t = parent(x[1])()
 
@@ -177,20 +190,72 @@ function transform{T}(x::Array{FactoredElem{T}, 1}, y::fmpz_mat)
   return z
 end
 
+function transform{T}(x::Array{FacElem{T}, 1}, y::fmpz_mat)
+  return _transform(x, y)
+end
+
 ################################################################################
 #
 #  Evaluate
 #
 ################################################################################
 
-function evaluate{T}(x::FactoredElem{T})
-  z = one(base_ring(x))
+doc"""
+***
+  evaluate{T}(x::FacElem{T}) -> T
 
-  for a in base(x)
-    z = z*a^x.fac[a]
+> Expands or evaluates the factored element, i.e. actually computes the
+> value. 
+"""
+function evaluate{T}(x::FacElem{T})
+  function ev{T}(d::Dict{T, fmpz})
+    z = one(base_ring(x))
+    if length(d)==0
+      return z
+    elseif length(d)==1
+      x = first(d)
+      return x[1]^x[2]
+    end
+    b = similar(d)
+    for (k,v) in d
+      if v>-10 && v<10
+        z *= k^v
+      else
+        r = isodd(v) ? 1 :0
+        vv = div(v-r, 2)
+        if vv!=0
+          b[k] = vv
+        end
+        if r!=0
+          z*= k
+        end
+      end
+    end
+    return ev(b)^2*z
+  end
+
+  return ev(x.fac)
+end
+
+doc"""
+***
+  naive_evaluate{T}(x::FacElem{T}) -> T
+
+> Expands or evaluates the factored element, i.e. actually computes the
+> value. Uses the obvious naive algorithm. Faster for input in finite rings.
+"""
+function naive_evaluate{T}(x::FacElem{T})
+  z = one(base_ring(x))
+  d = x.fac
+  if length(d)==0
+    return z
+  end
+  for (k,v) in d
+    z *= k^v
   end
   return z
 end
+
 
 ################################################################################
 #
@@ -212,7 +277,7 @@ end
 #
 ################################################################################
 
-function call{T}(F::FactoredElemMon{T}, a::T)
+function call{T}(F::FacElemMon{T}, a::T)
   z = F()
   z.fac[a] = fmpz(1)
   return z

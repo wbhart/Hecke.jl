@@ -43,6 +43,30 @@ function next_prime{T <: Integer}(z::T)
   return z
 end
 
+function next_prime(z::fmpz)
+  z < 0 && error("Argument must be positive")
+
+  Tone = one(z)
+  Tzero = zero(z)
+  Ttwo = one(z) + one(z)
+
+  if z == Tone || z == Tzero
+    return Ttwo
+  end
+
+  if iseven(z)
+    z += Tone
+  else z += Ttwo
+  end
+
+  while !isprime(z)
+    Nemo.addeq!(z, Ttwo)
+  end
+
+  return z
+end
+
+
 # should be Bernstein'ed: this is slow for large valuations
 # returns the maximal v s.th. z mod p^v == 0 and z div p^v
 #   also useful if p is not prime....
@@ -260,4 +284,59 @@ function rand(rng::AbstractRNG, a::StepRange{fmpz, fmpz})
   end
   return s + first(a)
 end
+
+function length(a::StepRange{fmpz, fmpz})
+  return a.stop - a.start +1
+end
+
+immutable RangeGeneratorfmpz <: Base.Random.RangeGenerator
+  a::StepRange{fmpz, fmpz}
+end
+
+function Base.Random.RangeGenerator(r::StepRange{fmpz,fmpz})
+    m = last(r) - first(r)
+    m < 0 && throw(ArgumentError("range must be non-empty"))
+    return RangeGeneratorfmpz(r)
+end
+
+function rand(rng::AbstractRNG, g::RangeGeneratorfmpz)
+  return rand(rng, g.a)
+end
+
+function Base.getindex(a::StepRange{fmpz,fmpz}, i::fmpz)
+  a.start+(i-1)*Base.step(a)
+end
+
+function ^(x::fmpq, y::fmpz)
+  if typemax(Int) > y
+    return x^Int(y)
+  else
+    error("Not implemented (yet)")
+  end
+end
+
+
+############################################################
+# more unsafe function that Bill does not want to have....
+############################################################
+
+function divexact!(z::fmpz, x::fmpz, y::fmpz)
+    y == 0 && throw(DivideError())
+    ccall((:fmpz_divexact, :libflint), Void, 
+          (Ptr{fmpz}, Ptr{fmpz}, Ptr{fmpz}), &z, &x, &y)
+    z
+end
+
+function lcm!(z::fmpz, x::fmpz, y::fmpz)
+   ccall((:fmpz_lcm, :libflint), Void, 
+         (Ptr{fmpz}, Ptr{fmpz}, Ptr{fmpz}), &z, &x, &y)
+end
+
+function gcd!(z::fmpz, x::fmpz, y::fmpz)
+   ccall((:fmpz_gcd, :libflint), Void, 
+         (Ptr{fmpz}, Ptr{fmpz}, Ptr{fmpz}), &z, &x, &y)
+end
+ 
+
+
 

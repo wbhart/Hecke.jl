@@ -124,8 +124,23 @@ function is_smooth{T}(c::FactorBase{T}, a::T)
     a = div(a, g)
     g = gcd(g, a)
   end
-  return a == 1 || a==-1, a
+  return a == 1 || a==-1
 end
+
+function is_smooth!(c::FactorBase{fmpz}, a::fmpz)
+  @assert a != 0
+  g = gcd(c.prod, a)
+  if g==1
+    return a==1 || a==-1, a
+  end
+  b = copy(a)
+  while g != 1 
+    divexact!(b, b, g)
+    gcd!(g, g, b)
+  end
+  return b == 1 || b==-1, b
+end
+
 
 function isleaf{T}(a::node{T})
   return !(isdefined(a, :left) || isdefined(a, :right))
@@ -221,7 +236,7 @@ end
 #
 ################################################################################
 
-function NfFactorBase(O::NfMaximalOrder, B::Int, F::Function, complete::Bool = false, degree_limit::Int = 0)
+function NfFactorBase(O::NfMaxOrd, B::Int, F::Function, complete::Bool = false, degree_limit::Int = 0)
   lp = prime_ideals_up_to(O, B, F, complete = complete, degree_limit = degree_limit)
   lp = sort(lp, lt = function(a,b) return norm(a) > norm(b); end)
   FB = NfFactorBase()
@@ -232,7 +247,7 @@ function NfFactorBase(O::NfMaximalOrder, B::Int, F::Function, complete::Bool = f
   FB.rw = Array(Int, 20)
   FB.mx = 20
 
-  fb = Dict{fmpz, Array{Tuple{Int, NfMaximalOrderIdeal}, 1}}()
+  fb = Dict{fmpz, Array{Tuple{Int, NfMaxOrdIdeal}, 1}}()
 
   for i = 1:length(lp)
     if !haskey(fb, lp[i].gen_one)
@@ -253,7 +268,7 @@ function NfFactorBase(O::NfMaximalOrder, B::Int, F::Function, complete::Bool = f
 end
 
 
-function NfFactorBase(O::NfMaximalOrder, B::Int;
+function NfFactorBase(O::NfMaxOrd, B::Int;
                       complete::Bool = true, degree_limit::Int = 5)
   @vprint :ClassGroup 2 "Splitting the prime ideals ...\n"
   lp = prime_ideals_up_to(O, B, complete = complete,
@@ -268,7 +283,7 @@ function NfFactorBase(O::NfMaximalOrder, B::Int;
   FB.rw = Array(Int, 20)
   FB.mx = 20
 
-  fb = Dict{fmpz, Array{Tuple{Int, NfMaximalOrderIdeal}, 1}}()
+  fb = Dict{fmpz, Array{Tuple{Int, NfMaxOrdIdeal}, 1}}()
 
   for i = 1:length(lp)
     if !haskey(fb, lp[i].gen_one)
@@ -334,8 +349,8 @@ function _factor!{T}(M::Smat{T}, i::Int, FB::NfFactorBase, a::nf_elem,
 end
 
 function factor(FB::NfFactorBase, a::nf_elem)
-  M = MatrixSpace(FlintZZ, 1, FB.size)()
-  factor!(M, 1, FB, a)
+  M = Smat{Int}()
+  _factor!(M, 1, FB, a)
   return M
 end
 
@@ -353,7 +368,7 @@ end
 
 global AllRels
 
-function class_group_init(O::NfMaximalOrder, FB::NfFactorBase, T::DataType = Smat{fmpz})
+function class_group_init(O::NfMaxOrd, FB::NfFactorBase, T::DataType = Smat{fmpz})
   global AllRels = []
 
 
@@ -392,7 +407,7 @@ function class_group_init(O::NfMaximalOrder, FB::NfFactorBase, T::DataType = Sma
   return clg
 end
 
-function class_group_init(O::NfMaximalOrder, B::Int;
+function class_group_init(O::NfMaxOrd, B::Int;
                           complete::Bool = true, degree_limit::Int = 0, T::DataType = Smat{fmpz})
   global AllRels = []
   clg = ClassGrpCtx{T}()
@@ -453,7 +468,7 @@ function special_prime_ideal(p::fmpz, a::nf_elem)
   R = parent(f)
   Zx = PolynomialRing(ZZ, "\$x_z")[1]
   Zf = Zx(f)
-  Zpx = PolynomialRing(ResidueRing(ZZ, p), "\$x_p")[1]
+  Zpx = PolynomialRing(ResidueRing(ZZ, p, cached=false), "\$x_p", cached=false)[1]
   Za = Zx(parent(f)(a*den(a)))
   g = gcd(Zpx(Zf), Zpx(Za))
   return lift(Zx, g)
@@ -465,7 +480,7 @@ function israt(a::nf_elem)
 end
 
 function class_group_add_relation{T}(clg::ClassGrpCtx{T}, a::nf_elem, n::fmpq, nI::fmpz)
-  if a==0
+  if iszero(a)
     return false
   end
   if a in clg.RS 
@@ -473,7 +488,7 @@ function class_group_add_relation{T}(clg::ClassGrpCtx{T}, a::nf_elem, n::fmpq, n
   end
   #print("trying relation of length ", Float64(length(clg.c, a)),
   #      " and norm ", Float64(n));
-  fl, r = is_smooth(clg.FB.fb_int, num(n*nI)*den(a))
+  fl, r = is_smooth!(clg.FB.fb_int, num(n*nI)*den(a))
   if !fl
     # try for large prime?
     if isprime(r) && abs(r) < clg.B2
@@ -522,7 +537,7 @@ end
 ################################################################################
 
 function class_group_random_ideal_relation(clg::ClassGrpCtx, r::Int,
-                                           I::NfMaximalOrderIdeal = rand(clg.FB.ideals))
+                                           I::NfMaxOrdIdeal = rand(clg.FB.ideals))
   s = 1
   if r < 2
     r = 2
@@ -542,7 +557,7 @@ end
 #
 ################################################################################
 function class_group_small_elements_relation(clg::ClassGrpCtx,
-                A::NfMaximalOrderIdeal, cnt::Int = degree(order(A)))
+                A::NfMaxOrdIdeal, cnt::Int = degree(order(A)))
   l = FakeFmpqMat(lll(basis_mat(A)))*basis_mat(order(A))
   K = nf(order(A))
   if cnt <= degree(A.parent.order)
@@ -588,6 +603,11 @@ end
 function round_scale(a::Array{BigFloat, 2}, l::Int)
   s = size(a)
   b = MatrixSpace(FlintZZ, s[1], s[2])()
+  return round_scale!(b, a, l)
+end
+ 
+function round_scale!(b::fmpz_mat, a::Array{BigFloat, 2}, l::Int)
+  s = size(a)
   R = RealRing()
   tmp_mpz = R.z1
   tmp_fmpz = R.zz1
@@ -626,35 +646,49 @@ function shift!(g::fmpz_mat, l::Int)
   end
   return g
 end
- 
-function lll(rt_c::roots_ctx, A::NfMaximalOrderIdeal, v::fmpz_mat;
+
+global last_lat=9
+function lll(rt_c::roots_ctx, A::NfMaxOrdIdeal, v::fmpz_mat;
                 prec::Int = 100)
   c = minkowski_mat(rt_c, nf(order(A)), prec) ## careful: current iteration
                                               ## c is NOT a copy, so don't change.
   l, t1 = lll_with_transform(basis_mat(A))
   b = FakeFmpqMat(l)*basis_mat(order(A))
-  if !isdefined(rt_c, :cache)
-    rt_c.cache = 0*c
+
+  n = degree(order(A))
+
+  if !isdefined(rt_c, :cache_z1)
+    rt_c.cache_z1 = MatrixSpace(ZZ, n, n)()
+    rt_c.cache_z2 = MatrixSpace(ZZ, n, n)()
   end
-  d = rt_c.cache
-  mult!(d, b.num, c)
+  
+  d = rt_c.cache_z1
+  g = rt_c.cache_z2
+
+  round_scale!(d, c, prec)
+  ccall((:fmpz_mat_mul, :libflint), Void, (Ptr{fmpz_mat}, Ptr{fmpz_mat},  Ptr{fmpz_mat}), &g, &(b.num), &d)
+  den = b.den
+
   if !iszero(v)
+    error("missing")
     @v_do :ClassGroup 2 println("using inf val", v)
     old = precision(BigFloat)
     setprecision(4*prec)
     mult_by_2pow_diag!(d, v);
     setprecision(old)
   end
-  old = precision(BigFloat)
-  setprecision(prec)
-  g = round_scale(d, prec)
-  @hassert :ClassGroup 1 !iszero(g)
-  setprecision(old)
-  g = g*g'
-  shift!(g, -prec)
-  g += rows(g)*one(parent(g))
 
-  l, t = lll_gram_with_transform(g)
+  ccall((:fmpz_mat_gram, :libflint), Void, (Ptr{fmpz_mat}, Ptr{fmpz_mat}), &d, &g)
+  shift!(d, -prec)
+  for i=1:n
+    fmpz_mat_entry_add_ui!(d, i, i, UInt(rows(d)))
+  end
+
+  ctx=Nemo.lll_ctx(0.99, 0.51, :gram)
+  ccall((:fmpz_mat_one, :libflint), Void, (Ptr{fmpz_mat}, ), &g)
+  ccall((:fmpz_lll, :libflint), Void, (Ptr{fmpz_mat}, Ptr{fmpz_mat}, Ptr{Nemo.lll_ctx}), &d, &g, &ctx)
+
+  l, t = d, g
   ## test if entries in l are small enough, if not: increase precision
   ## or signal that prec was too low
   @v_do :ClassGroup 2 print_with_color(:green, "lll basis length profile\n");
@@ -671,7 +705,6 @@ function lll(rt_c::roots_ctx, A::NfMaximalOrderIdeal, v::fmpz_mat;
   ## l[1,1] = |b_i|^2 <= 2^((n-1)/2) disc^(1/n)  
   ## and prod(l[i,i]) <= 2^(n(n-1)/2) disc
   n = rows(l)
-  den = basis_mat(order(A)).den
   disc = abs(discriminant(order(A)))*norm(A)^2 * den^(2*n)
   d = root(disc, n)+1
   d *= fmpz(2)^(div(n+1,2)) * fmpz(2)^prec
@@ -690,7 +723,7 @@ function lll(rt_c::roots_ctx, A::NfMaximalOrderIdeal, v::fmpz_mat;
     throw(LowPrecisionLLL())
   end
 
-  return l, t*t1
+  return deepcopy(l), t*t1
 end
 
 ################################################################################
@@ -699,8 +732,8 @@ end
 #
 ################################################################################
 
-function one_step(c::roots_ctx, b::NfMaximalOrderFracIdeal,
-                p::NfMaximalOrderIdeal; prec::Int = 100)
+function one_step(c::roots_ctx, b::NfMaxOrdFracIdeal,
+                p::NfMaxOrdIdeal; prec::Int = 100)
   b = p*b
   simplify(b)
   g1 = short_elem(c, b, prec = prec)
@@ -710,12 +743,12 @@ function one_step(c::roots_ctx, b::NfMaximalOrderFracIdeal,
   return simplify(g2*inv(b)), g1, g2
 end
 
-function short_elem(c::roots_ctx, A::NfMaximalOrderFracIdeal,
+function short_elem(c::roots_ctx, A::NfMaxOrdFracIdeal,
                 v::fmpz_mat=MatrixSpace(FlintZZ, 1,1)(); prec::Int = 100)
   return divexact(short_elem(c, A.num, v, prec = prec), A.den)
 end
 
-function short_elem(c::roots_ctx, A::NfMaximalOrderIdeal,
+function short_elem(c::roots_ctx, A::NfMaxOrdIdeal,
                 v::fmpz_mat = MatrixSpace(FlintZZ, 1,1)(); prec::Int = 100)
   K = nf(order(A))
   temp = FakeFmpqMat(basis_mat(A))*basis_mat(order(A))
@@ -732,8 +765,9 @@ end
 #
 ################################################################################
 
-function enum_ctx_from_ideal(c::roots_ctx, A::NfMaximalOrderIdeal,
+function enum_ctx_from_ideal(c::roots_ctx, A::NfMaxOrdIdeal,
                 v::fmpz_mat;prec::Int = 100, limit::Int = 0, Tx::DataType = Int, TU::DataType = Float64, TC::DataType = Float64)
+
   l, t = lll(c, A, v, prec = prec)
   temp = FakeFmpqMat(basis_mat(A))*basis_mat(order(A))
   b = temp.num
@@ -766,7 +800,7 @@ end
 
 global _start = 0.0
 function class_group_small_real_elements_relation_start(clg::ClassGrpCtx,
-                A::NfMaximalOrderIdeal; prec::Int = 200, val::Int = 0,
+                A::NfMaxOrdIdeal; prec::Int = 200, val::Int = 0,
                 limit::Int = 0)
   global _start
   @v_do :ClassGroup_time 2 rt = time_ns()
@@ -826,7 +860,7 @@ function class_group_current_result(clg::ClassGrpCtx)
       upper_triangular(h, mod = modu)
       if rows(h) == cols(h)
         h = copy(clg.M)
-        println("1st non modular hnf")
+        #println("1st non modular hnf")
         upper_triangular(h)
         clg.H_is_modular = false
         full_rank = true
@@ -871,7 +905,7 @@ we do need redundant relations for the units.
   clg.H = h
   clg.last_H = length(clg.R)
   if length(clg.R)/rows(h) > 4
-    print_with_color(:yellow, "not enough useful relations\n")
+    #print_with_color(:yellow, "not enough useful relations\n")
   end
     
   piv = Array(Int, 0)
@@ -964,7 +998,7 @@ function class_group_find_relations(clg::ClassGrpCtx; val = 0, prec = 100,
       end
 #        print_with_color(:blue, "norm OK:")
 #        println(n//norm(I[end].A), " should be ", sqrt_disc)
-      if n > sqrt_disc
+      if nbits(num(n)) > np-10
 #        prec = Int(ceil(prec*1.2))
         print_with_color(:red, "norm too large:")
         println(n, " should be ", sqrt_disc)
@@ -1057,9 +1091,9 @@ function class_group_find_relations(clg::ClassGrpCtx; val = 0, prec = 100,
           @assert false   
         end
         =#
-        if n > sqrt_disc
+        if nbits(num(n)) > np-10
           @v_do :ClassGroup 2 begin
-            print_with_color(:red, "2:norm too large:")
+            print_with_color(:red, "2:norm too large: $n of $(nbits(num(n))) vs $np")
             println(n, " should be ", sqrt_disc)
             println("offending element is ", e)
             println("prec now ", prec)
@@ -1195,8 +1229,8 @@ function class_group_find_relations2(clg::ClassGrpCtx; val = 0, prec = 100,
     while true
       e = class_group_small_real_elements_relation_next(f)
       n = abs(norm_div(e, norm(f.A), np))
-      if n > sqrt_disc || f.restart > 0
-        print_with_color(:red, "norm too large or restarting:")
+      if nbits(num(n)) > np-10 || f.restart > 0
+        print_with_color(:red, "norm too large or restarting: $(f.restart)")
         println(n, " should be ", sqrt_disc)
         println("offending element is ", e)
         println("skipping ideal (for now)")
@@ -1280,7 +1314,7 @@ function class_group_find_relations2(clg::ClassGrpCtx; val = 0, prec = 100,
         while true
           e = class_group_small_real_elements_relation_next(E)
           n = abs(norm_div(e, norm(E.A), np))
-          if n > sqrt_disc || E.restart > 2
+          if nbits(num(n)) > np-10 || E.restart > 5
             @v_do :ClassGroup 2 begin
               print_with_color(:red, "2:norm too large (or restarting):")
               println(n, " should be ", sqrt_disc)
@@ -1365,6 +1399,8 @@ function class_group_find_relations2(clg::ClassGrpCtx; val = 0, prec = 100,
   return class_group_current_result(clg)
 end
 
+
+# CF: incomplete
 function class_group_find_relations3(clg::ClassGrpCtx; val = 0, prec = 100,
                 limit = 10, no_b = 1)
   O = order(clg.FB.ideals[1])
@@ -1398,7 +1434,12 @@ end
 #
 ################################################################################
 
-function class_group(O::NfMaximalOrder; bound = -1, method = 2, large = 1000)
+function class_group(O::NfMaxOrd; bound = -1, method = 2, large = 1000)
+  try 
+    c = _get_ClassGrpCtx_of_order(O)::ClassGrpCtx
+    return c
+  end
+
   if bound == -1
     bound = Int(ceil(log(abs(discriminant(O)))^2*0.3))
   end
@@ -1412,9 +1453,84 @@ function class_group(O::NfMaximalOrder; bound = -1, method = 2, large = 1000)
     class_group_find_relations2(c)
   end
 
+  _set_ClassGrpCtx_of_order(O, c)
+
   return c
 end
 
+function class_group_proof(clg::ClassGrpCtx, lb::fmpz, ub::fmpz; extra :: fmpz=fmpz(0), prec::Int = 100, do_it=1:ub)
+  #for all prime ideals P with lb <= norm <= ub, find a relation
+  #tying that prime to the factor base
+  # if extra is useful, assume that the function was already run for all primes
+  # up to norm extra
+
+  if extra==0
+    extra = norm(clg.FB.ideals[1])
+  end
+  lb = max(lb, norm(clg.FB.ideals[1]))
+  lb = max(lb, 2)
+  println("expect to need ", Int(floor(li(ub*1.0) - li(lb*1.0))), " primes")
+  O = order(clg.FB.ideals[1])
+  n = degree(O)
+  p = next_prime(root(lb, n))
+  np = Int(floor(log(abs(discriminant(O)))/log(2)/2))
+  no_primes = 0
+  no_ideals = 0
+  if do_it.start > 1
+    p = fmpz(next_prime(do_it.start))
+  end
+  r = fmpz()
+  gc_enable(false)
+  while p < do_it.stop
+    no_primes += 1
+    if no_primes % 100 == 0
+      println("did $no_primes prime numbers so far, now $p, need to reach $ub")
+    end
+    deg_lim = Int(floor(log(ub)/log(p)))
+    low_lim = Int(floor(log(lb)/log(p)))
+    fac = prime_decomposition(O, Int(p), deg_lim, low_lim)
+    for _k in fac
+      k = _k[1]
+      if norm(k) <= lb 
+        continue
+      end
+      no_ideals += 1
+      if no_ideals % 10 == 0
+        println("done $no_ideals ideals so far...")
+        gc_enable(true)
+        gc()
+        gc_enable(false)
+      end
+      #println("to be more precise: $k")
+      E = class_group_small_real_elements_relation_start(clg, k, limit=10, prec=prec)
+      while true
+        sucess = false
+        a = class_group_small_real_elements_relation_next(E)
+        n = norm_div(a, norm(k), np)
+        if gcd(num(n), p) > extra 
+          println("a: $a, $(norm(a)), $(norm(k)), $n")
+#          println("contains too many conjugates, bad")
+          continue
+        end
+        f, r = is_smooth!(clg.FB.fb_int, num(n))
+        if f 
+          M = Smat{Int}()
+          fl = _factor!(M, 1, clg.FB, a, false, n)
+          if fl
+            break
+          else
+#            println("not smooth, ideal")
+          end
+        else
+#          println("not smooth, int")
+        end
+      end
+    end
+    p = next_prime(p)
+  end
+  println("success: used $no_primes numbers and $no_ideals ideals")
+  gc_enable(true)
+end
 
 ################################################################################
 #
@@ -1497,7 +1613,7 @@ end
 #
 # beware of the precision issue.
 #
-function lll(M::NfMaximalOrder)
+function lll(M::NfMaxOrd)
   I = hecke.ideal(M, parent(basis_mat(M).num)(1))
   K = nf(M)
   c = conjugates_init(K.pol)
@@ -1506,7 +1622,7 @@ function lll(M::NfMaximalOrder)
   while true
     try
       q,w = lll(c, I, parent(basis_mat(M).num)(0), prec = prec)
-      return NfMaximalOrder(K, FakeFmpqMat(w*basis_mat(M).num, basis_mat(M).den))
+      return NfMaxOrd(K, FakeFmpqMat(w*basis_mat(M).num, basis_mat(M).den))
     catch e
       if isa(e, LowPrecisionLLL)
         prec = Int(round(prec*1.2))
@@ -1576,11 +1692,11 @@ function _validate_class_unit_group(c::ClassGrpCtx, U::UnitGrpCtx)
   end
 end
 
-function _class_unit_group(O::NfMaximalOrder)
+function _class_unit_group(O::NfMaxOrd)
 
   c = class_group(O)
 
-  U = UnitGrpCtx{FactoredElem{nf_elem}}(O)
+  U = UnitGrpCtx{FacElem{nf_elem}}(O)
 
   _unit_group_find_units(U, c)
 

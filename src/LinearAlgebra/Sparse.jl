@@ -19,7 +19,7 @@ import Base.push!, Base.max, Nemo.nbits, Base.sparse, Base.Array
 
 export upper_triangular, vcat!, show, sub, Smat, SmatRow, random_SmatSLP,
        fmpz_mat, rows, cols, copy, push!, mul, mul!, abs_max, toNemo, sparse,
-       valence_mc
+       valence_mc, swap_rows!
 
 ################################################################################
 #
@@ -265,43 +265,44 @@ end
 
 function SLP_AddRow{T}(i::Int, j::Int, v::T)
   assert(v != 0)
-  slp = SmatSLP(i, j, SLP_AddRow_typ, v)
+  slp = SmatSLP_add_row(i, j, v)
   return slp
 end
 
-function SLP_SwapRows{T}(i::Int, j::Int)
-  slp = SmatSLP{T}(i, j, SLP_SwapRows_typ, T(0))
+function SLP_SwapRows(i::Int, j::Int)
+  slp = SmatSLP_swap_row(i, j)
   return slp
 end
 
-function mul!{T}(a::Array{T, 1}, s::SmatSLP{T})
-  if s.typ==SLP_AddRow_typ
-    a[s.row] = a[s.row]*s.val + a[s.col]
-  elseif s.typ==SLP_SwapRows_typ
-    t = a[s.row]
-    a[s.row] = a[s.col]
-    a[s.col] = t
-  end
+function mul!{T}(a::Array{T, 1}, s::SmatSLP_swap_row)
+  t = a[s.row]
+  a[s.row] = a[s.col]
+  a[s.col] = t
 end
 
-function mul_t!{T}(a::Array{T, 1}, s::SmatSLP{T})
-  if s.typ==SLP_AddRow_typ
-    a[s.col] = a[s.col]*s.val + a[s.row]
-  elseif s.typ==SLP_SwapRows_typ
-    t = a[s.row]
-    a[s.row] = a[s.col]
-    a[s.col] = t
-  end
+function mul!{T}(a::Array{T, 1}, s::SmatSLP_add_row{T})
+  a[s.row] = a[s.row]*s.val + a[s.col]
 end
 
-function apply!{T}(a::Array{T}, b::Array{SmatSLP{T}, 1})
+function mul_t!{T}(a::Array{T, 1}, s::SmatSLP_swap_row)
+  t = a[s.row]
+  a[s.row] = a[s.col]
+  a[s.col] = t
+end
+
+function mul_t!{T}(a::Array{T, 1}, s::SmatSLP_add_row{T})
+  a[s.col] = a[s.col]*s.val + a[s.row]
+end
+
+
+function apply!{T}(a::Array{T}, b::Array{SmatSLP_add_row{T}, 1})
   for i=length(b):-1:1
     mul!(a, b[i])
   end
   return a
 end
 
-function apply_t!{T}(a::Array{T}, b::Array{SmatSLP{T}, 1})
+function apply_t!{T}(a::Array{T}, b::Array{SmatSLP_add_row{T}, 1})
   for i=1:length(b)
     mul_t!(a, b[i])
   end
@@ -309,7 +310,7 @@ function apply_t!{T}(a::Array{T}, b::Array{SmatSLP{T}, 1})
 end
 
 function random_SmatSLP{T}(A::Smat{T}, i::Int, v::UnitRange)
-  a = Array(SmatSLP{Int}, i)
+  a = Array(SmatSLP_add_row{Int}, i)
   for j=1:i
     c = rand(v)
     while c==0
@@ -327,7 +328,7 @@ function random_SmatSLP{T}(A::Smat{T}, i::Int, v::UnitRange)
 end
 
 @doc """
-  valence_mc{T}(A::Smat{T}; extra_prime = 2, trans = Array{SmatSLP{T}, 1}()) -> T
+  valence_mc{T}(A::Smat{T}; extra_prime = 2, trans = Array{SmatSLP_add_row{T}, 1}()) -> T
 
   Uses a Monte-Carlo alorithm to  compute the valence of A. The valence is the vaence of the minimal polynomial f of A'*A, thus the last non-zero coefficient,
   typically f(0).
@@ -338,7 +339,7 @@ end
   trans, if given, is  a SLP (straight-line-program) in GL(n, Z). Then
   the valence of trans * A  is computed instead.
 """ ->
-function valence_mc{T}(A::Smat{T}; extra_prime = 2, trans = Array{SmatSLP{T}, 1}())
+function valence_mc{T}(A::Smat{T}; extra_prime = 2, trans = Array{SmatSLP_add_row{T}, 1}())
   # we work in At * A (or A * At) where we choose the smaller of the 2
   # matrices
   if false && cols(A) > rows(A)
@@ -601,6 +602,17 @@ end
 #
 ################################################################################
 
+@doc """
+  swap_rows!{T}(A::Smat{T}, i::Int, j::Int)
+
+  swaps, inplace, the i-th row and the j-th
+""" ->
+function swap_rows!{T}(A::Smat{T}, i::Int, j::Int)
+  a = A.rows[i]
+  A.rows[i] = A.rows[j]
+  A.rows[j] = a
+end
+
 # rows j -> row i*c + row j
 @doc """
   add_scaled_row!{T}(A::Smat{T}, i::Int, j::Int, c::T)
@@ -768,6 +780,90 @@ function abs_max(A::Smat{fmpz})
   return abs(m)
 end
 
+function max(A::Smat{Int})
+  m = A.rows[1].values[1]
+  for i in A.rows
+    for j in i.values
+      m = max(m, j)
+    end
+  end
+  return m
+end
+
+function max(A::Smat{BigInt})
+  m = A.rows[1].values[1]
+  for i in A.rows
+    for j in i.values
+      if ccall((:__gmpz_cmp, :libgmp), Int, (Ptr{BigInt}, Ptr{BigInt}),
+        &m, &j) < 0
+        m = j
+      end
+    end
+  end
+  return m
+end
+
+@doc """
+  max(A::Smat{Int}) -> Int
+  max(A::Smat{BigInt}) -> BigInt
+  max(A::Smat{fmpz}) -> fmpz
+
+  Finds the largest entry of A
+""" ->
+function max(A::Smat{fmpz})
+  m = A.rows[1].values[1]
+  for i in A.rows
+    for j in i.values
+      if cmp(m, j) < 0
+        m = j
+      end
+    end
+  end
+  return m
+end
+
+function min(A::Smat{Int})
+  m = 0
+  for i in A.rows
+    for j in i.values
+      m = min(m, j)
+    end
+  end
+  return m
+end
+
+function min(A::Smat{BigInt})
+  m = BigInt(0)
+  for i in A.rows
+    for j in i.values
+      if ccall((:__gmpz_cmp, :libgmp), Int, (Ptr{BigInt}, Ptr{BigInt}),
+        &m, &j) > 0
+        m = j
+      end
+    end
+  end
+  return m
+end
+
+@doc """
+  min(A::Smat{Int}) -> Int
+  min(A::Smat{BigInt}) -> BigInt
+  min(A::Smat{fmpz}) -> fmpz
+
+  Finds the smallest entry of A
+""" ->
+function min(A::Smat{fmpz})
+  m = fmpz(0)
+  for i in A.rows
+    for j in i.values
+      if cmp(m, j) > 0
+        m = j
+      end
+    end
+  end
+  return m
+end
+
 function nbits(a::BigInt)
   return ndigits(a, 2)
 end
@@ -918,4 +1014,6 @@ end
 function sparsity{T}(A::Smat{T})
   return A.nnz/(A.r * A.c), nbits(abs_max(A))
 end
-  
+ 
+#include("/home/claus/bigRel")
+

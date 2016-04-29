@@ -71,14 +71,16 @@ import Nemo: nf_elem, PariIdeal, AnticNumberField, FmpzPolyRing, degree,
              Ring, prec, conj, mul!, gen, divexact, derivative, zero!, divrem,
              resultant, evaluate, setcoeff!, div, isodd, iseven, max, floor,
              ceil, //, setindex!, transpose, colon, nf_elem, isreal,
-             MatrixSpace, elem_type, contains, overlaps, solve
+             MatrixSpace, contains, overlaps, solve, unique_integer, gcd,
+             minpoly, charpoly, det,
+             howell_form, needs_parentheses, is_negative, parent_type
 
-export AnticNumberField, hash, update, nf
+export AnticNumberField, hash, update, nf, next_prime, dot
 
 import Base: show, minimum, rand, prod, copy, rand!, call, rand, ceil, round, 
-             size, dot, in, powermod, ^, getindex, ==, <, >, +, *, /, -, !=
+             size, dot, in, powermod, ^, getindex, ==, <, >, +, *, /, \, -, !=
              getindex, setindex!, transpose, getindex, //, colon, exp, div,
-             floor, max, BigFloat, promote_rule, precision, 
+             floor, max, BigFloat, promote_rule, precision, dot
              first, StepRange, show, one, zero, inv, iseven, isodd
 
 # To make all exported Nemo functions visible to someone using "using Hecke"
@@ -139,10 +141,15 @@ function __init__()
   global _get_nf_torsion_units = t[1]
   global _set_nf_torsion_units = t[2]
 
-  t = create_accessors(AnticNumberField, NfMaximalOrder, get_handle())
+  t = create_accessors(AnticNumberField, NfMaxOrd, get_handle())
 
   global _get_maximal_order_of_nf = t[1]
   global _set_maximal_order_of_nf = t[2]
+
+  t = create_accessors(NfMaxOrd, ClassGrpCtx, get_handle())
+
+  global _get_ClassGrpCtx_of_order = t[1]
+  global _set_ClassGrpCtx_of_order = t[2]
 
   global R = _RealRing()
 
@@ -200,7 +207,7 @@ end
 #
 ################################################################################
 
-global VERSION_NUMBER = v"0.1-dev"
+global VERSION_NUMBER = v"0.1.2"
 
 ################################################################################
 #
@@ -419,10 +426,10 @@ include("Misc.jl")
 include("LinearAlgebra.jl")
 include("BigComplex.jl")
 include("conjugates.jl")
-include("NfMaximalOrder/GenNfOrd.jl")
-include("NfOrder.jl")
+include("NfMaxOrd/NfOrdCls.jl")
+include("NfOrd.jl")
 include("analytic.jl")
-include("NfMaximalOrder.jl")
+include("NfMaxOrd.jl")
 include("Map.jl")
 include("basis.jl")
 include("helper.jl")
@@ -436,9 +443,9 @@ include("misc.jl")
 
 # Nemo only provides element_types for parent objects
 
-elem_type(::Type{NfMaximalOrder}) = NfOrderElem
+elem_type(::Type{NfMaxOrd}) = NfOrdElem
 
-elem_type{T}(::Type{FactoredElemMon{T}}) = FactoredElem{T}
+elem_type{T}(::Type{FacElemMon{T}}) = FacElem{T}
 
 ################################################################################
 #
@@ -478,5 +485,49 @@ function update()
 
   cd(olddir)
 end
+
+function whos(io::IO=STDOUT, m::Module=current_module(), pattern::Regex=r"")
+    maxline = Base.tty_size()[2]
+    line = zeros(UInt8, maxline)
+    head = PipeBuffer(maxline + 1)
+    for v in sort!(names(m, true)) # show also NON exported stuff!
+        s = string(v)
+        if isdefined(m, v) && ismatch(pattern, s)
+            value = getfield(m, v)
+            @printf head "%30s " s
+            try
+                bytes = Base.summarysize(value)
+                if bytes < 10_000
+                    @printf(head, "%6d bytes  ", bytes)
+                else
+                    @printf(head, "%6d KB     ", bytes ÷ (1024))
+                end
+                print(head, Base.summary(value))
+            catch e
+                print(head, "#=ERROR: unable to show value=#")
+                println(e)
+            end
+
+            newline = search(head, UInt8('\n')) - 1
+            if newline < 0
+                newline = nb_available(head)
+            end
+            if newline > maxline
+                newline = maxline - 1 # make space for ...
+            end
+            line = resize!(line, newline)
+            line = read!(head, line)
+
+            Base.write(io, line)
+            if nb_available(head) > 0 # more to read? replace with ...
+                print(io, '\u2026') # hdots
+            end
+            println(io)
+            seekend(head) # skip the rest of the text
+        end
+    end
+end
+whos(m::Module, pat::Regex=r"") = whos(STDOUT, m, pat)
+whos(pat::Regex) = whos(STDOUT, current_module(), pat)
 
 end
